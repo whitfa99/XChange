@@ -1,38 +1,20 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.examples.bitstamp.account;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 
 import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.bitstamp.dto.account.BitstampBalance;
-import com.xeiam.xchange.bitstamp.dto.account.BitstampBooleanResponse;
 import com.xeiam.xchange.bitstamp.dto.account.BitstampDepositAddress;
+import com.xeiam.xchange.bitstamp.dto.account.BitstampWithdrawal;
+import com.xeiam.xchange.bitstamp.dto.account.DepositTransaction;
+import com.xeiam.xchange.bitstamp.dto.account.WithdrawalRequest;
 import com.xeiam.xchange.bitstamp.service.polling.BitstampAccountServiceRaw;
 import com.xeiam.xchange.currency.Currencies;
 import com.xeiam.xchange.dto.account.AccountInfo;
 import com.xeiam.xchange.examples.bitstamp.BitstampDemoUtils;
-import com.xeiam.xchange.service.polling.PollingAccountService;
+import com.xeiam.xchange.service.polling.account.PollingAccountService;
 
 /**
  * <p>
@@ -42,6 +24,9 @@ import com.xeiam.xchange.service.polling.PollingAccountService;
  * <li>Connect to Bitstamp exchange with authentication</li>
  * <li>View account balance</li>
  * <li>Get the bitcoin deposit address</li>
+ * <li>List unconfirmed deposits (raw interface only)</li>
+ * <li>List recent withdrawals (raw interface only)</li>
+ * <li>Withdraw a small amount of BTC</li>
  * </ul>
  */
 public class BitstampAccountDemo {
@@ -64,7 +49,7 @@ public class BitstampAccountDemo {
     String depositAddress = accountService.requestDepositAddress(Currencies.BTC);
     System.out.println("Deposit address: " + depositAddress);
 
-    String withdrawResult = accountService.withdrawFunds("BTC", new BigDecimal(1).movePointLeft(4), "1MHMpzFxx4fRSaeYGSxhyEcgux7j4Gqwsc");
+    String withdrawResult = accountService.withdrawFunds("BTC", new BigDecimal(1).movePointLeft(4), "1PxYUsgKdw75sdLmM7HYP2p74LEq3mxM6L");
     System.out.println("withdrawResult = " + withdrawResult);
   }
 
@@ -72,12 +57,25 @@ public class BitstampAccountDemo {
 
     // Get the account information
     BitstampBalance bitstampBalance = accountService.getBitstampBalance();
-    System.out.println("BitstampBalance as String: " + bitstampBalance.toString());
+    System.out.println("BitstampBalance: " + bitstampBalance);
 
     BitstampDepositAddress depositAddress = accountService.getBitstampBitcoinDepositAddress();
     System.out.println("BitstampDepositAddress address: " + depositAddress);
 
-    BitstampBooleanResponse withdrawResult = accountService.withdrawBitstampFunds(new BigDecimal(1).movePointLeft(4), "1MHMpzFxx4fRSaeYGSxhyEcgux7j4Gqwsc");
+    final List<DepositTransaction> unconfirmedDeposits = accountService.getUnconfirmedDeposits();
+    System.out.println("Unconfirmed deposits:");
+    for (DepositTransaction unconfirmedDeposit : unconfirmedDeposits) {
+      System.out.println(unconfirmedDeposit);
+    }
+
+    final List<WithdrawalRequest> withdrawalRequests = accountService.getWithdrawalRequests();
+    System.out.println("Withdrawal requests:");
+    for (WithdrawalRequest unconfirmedDeposit : withdrawalRequests) {
+      System.out.println(unconfirmedDeposit);
+    }
+
+    BitstampWithdrawal withdrawResult = accountService.withdrawBitstampFunds(new BigDecimal(1).movePointLeft(4),
+        "1PxYUsgKdw75sdLmM7HYP2p74LEq3mxM6L");
     System.out.println("BitstampBooleanResponse = " + withdrawResult);
   }
 }

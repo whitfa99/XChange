@@ -1,40 +1,25 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.anx.v2.service.polling;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 
-import com.xeiam.xchange.ExchangeSpecification;
-import com.xeiam.xchange.NotYetImplementedForExchangeException;
+import com.xeiam.xchange.BaseExchange;
 import com.xeiam.xchange.anx.ANXUtils;
 import com.xeiam.xchange.anx.v2.ANXAdapters;
+import com.xeiam.xchange.anx.v2.ANXExchange;
+import com.xeiam.xchange.anx.v2.dto.trade.polling.ANXTradeResultWrapper;
 import com.xeiam.xchange.dto.Order.OrderType;
-import com.xeiam.xchange.dto.marketdata.Trades;
 import com.xeiam.xchange.dto.trade.LimitOrder;
 import com.xeiam.xchange.dto.trade.MarketOrder;
 import com.xeiam.xchange.dto.trade.OpenOrders;
-import com.xeiam.xchange.service.polling.PollingTradeService;
+import com.xeiam.xchange.dto.trade.UserTrades;
+import com.xeiam.xchange.exceptions.ExchangeException;
+import com.xeiam.xchange.service.polling.trade.PollingTradeService;
+import com.xeiam.xchange.service.polling.trade.params.DefaultTradeHistoryParamsTimeSpan;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParams;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParamsTimeSpan;
 import com.xeiam.xchange.utils.Assert;
+import com.xeiam.xchange.utils.DateUtils;
 
 /**
  * @author timmolter
@@ -43,12 +28,12 @@ public class ANXTradeService extends ANXTradeServiceRaw implements PollingTradeS
 
   /**
    * Constructor
-   * 
-   * @param exchangeSpecification The {@link com.xeiam.xchange.ExchangeSpecification}
+   *
+   * @param baseExchange
    */
-  public ANXTradeService(ExchangeSpecification exchangeSpecification) {
+  public ANXTradeService(BaseExchange baseExchange) {
 
-    super(exchangeSpecification);
+    super(baseExchange);
   }
 
   @Override
@@ -60,9 +45,6 @@ public class ANXTradeService extends ANXTradeServiceRaw implements PollingTradeS
   @Override
   public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
 
-    // verify(marketOrder.getTradableIdentifier(), marketOrder.getTransactionCurrency());
-
-    verify(marketOrder.getCurrencyPair());
     return placeANXMarketOrder(marketOrder).getDataString();
   }
 
@@ -70,7 +52,6 @@ public class ANXTradeService extends ANXTradeServiceRaw implements PollingTradeS
   public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
 
     // Validation
-    verify(limitOrder.getCurrencyPair());
     Assert.notNull(limitOrder.getLimitPrice(), "getLimitPrice() cannot be null");
     Assert.notNull(limitOrder.getTradableAmount(), "getTradableAmount() cannot be null");
 
@@ -95,12 +76,58 @@ public class ANXTradeService extends ANXTradeServiceRaw implements PollingTradeS
 
     Assert.notNull(orderId, "orderId cannot be null");
 
-    return cancelANXOrder(orderId).getResult().equals("success");
+    return cancelANXOrder(orderId, "BTC", "EUR").getResult().equals("success");
+  }
+
+  /**
+   * @param args Accept zero or 2 parameters, both are unix time: Long from, Long to
+   */
+  @Override
+  public UserTrades getTradeHistory(Object... args) throws IOException {
+
+    Long from = null;
+    Long to = null;
+
+    if (args.length > 0) {
+      from = (Long) args[0];
+    }
+    if (args.length > 1) {
+      to = (Long) args[1];
+    }
+
+    return getTradeHistory(from, to);
+  }
+
+  private UserTrades getTradeHistory(Long from, Long to) throws IOException {
+    ANXTradeResultWrapper rawTrades = getExecutedANXTrades(from, to);
+    String error = rawTrades.getError();
+
+    if (error != null) {
+      throw new IllegalStateException(error);
+    }
+
+    return ANXAdapters.adaptUserTrades(rawTrades.getAnxTradeResults(), ((ANXExchange) exchange).getANXMetaData());
+  }
+
+  /**
+   * Suported parameter types: {@link TradeHistoryParamsTimeSpan}
+   */
+  @Override
+  public UserTrades getTradeHistory(TradeHistoryParams params) throws ExchangeException, IOException {
+
+    Long from = null;
+    Long to = null;
+    if (params instanceof TradeHistoryParamsTimeSpan) {
+      TradeHistoryParamsTimeSpan p = (TradeHistoryParamsTimeSpan) params;
+      from = DateUtils.toMillisNullSafe(p.getStartTime());
+      to = DateUtils.toMillisNullSafe(p.getEndTime());
+    }
+    return getTradeHistory(from, to);
   }
 
   @Override
-  public Trades getTradeHistory(Object... args) throws IOException {
+  public TradeHistoryParams createTradeHistoryParams() {
 
-    throw new NotYetImplementedForExchangeException();
+    return new DefaultTradeHistoryParamsTimeSpan();
   }
 }

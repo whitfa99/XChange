@@ -1,27 +1,7 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.anx;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.util.List;
 
@@ -47,7 +27,7 @@ public final class ANXUtils {
 
   /**
    * Find and match an order with id in orders
-   * 
+   *
    * @param orders
    * @param order
    * @param id
@@ -73,8 +53,7 @@ public final class ANXUtils {
 
     if (currencyPair.baseSymbol.equalsIgnoreCase(Currencies.BTC.toString()) || currencyPair.baseSymbol.equalsIgnoreCase(Currencies.LTC.toString())) {
       return 5;
-    }
-    else {
+    } else {
       return 8;
     }
   }
@@ -88,8 +67,8 @@ public final class ANXUtils {
     }
   }
 
-  public static long getNonce() {
-
-    return System.currentTimeMillis();
+  public static BigDecimal percentToFactor(BigDecimal percent) {
+    int PERCENT_DECIMAL_SHIFT = 2;
+    return percent.movePointLeft(PERCENT_DECIMAL_SHIFT);
   }
 }

@@ -1,31 +1,11 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.btce.v3.service.polling;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.btce.v3.BTCEAuthenticated;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCECancelOrderResult;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCECancelOrderReturn;
@@ -35,22 +15,26 @@ import com.xeiam.xchange.btce.v3.dto.trade.BTCEPlaceOrderResult;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCEPlaceOrderReturn;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCETradeHistoryResult;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCETradeHistoryReturn;
+import com.xeiam.xchange.btce.v3.dto.trade.BTCETransHistoryResult;
+import com.xeiam.xchange.btce.v3.dto.trade.BTCETransHistoryReturn;
 
 /**
- * Author: brox
- * Since: 2014-02-13
+ * Author: brox Since: 2014-02-13
  */
 
-public class BTCETradeServiceRaw extends BTCEBasePollingService<BTCEAuthenticated> {
+public class BTCETradeServiceRaw extends BTCEBasePollingService {
+
+  private static final String MSG_NO_TRADES = "no trades";
+  private static final String MSG_BAD_STATUS = "bad status";
 
   /**
    * Constructor
-   * 
-   * @param exchangeSpecification The {@link com.xeiam.xchange.ExchangeSpecification}
+   *
+   * @param exchange
    */
-  public BTCETradeServiceRaw(ExchangeSpecification exchangeSpecification) {
+  public BTCETradeServiceRaw(Exchange exchange) {
 
-    super(BTCEAuthenticated.class, exchangeSpecification);
+    super(exchange);
   }
 
   /**
@@ -60,7 +44,7 @@ public class BTCETradeServiceRaw extends BTCEBasePollingService<BTCEAuthenticate
    */
   public Map<Long, BTCEOrder> getBTCEActiveOrders(String pair) throws IOException {
 
-    BTCEOpenOrdersReturn orders = btce.ActiveOrders(apiKey, signatureCreator, nextNonce(), pair);
+    BTCEOpenOrdersReturn orders = btce.ActiveOrders(apiKey, signatureCreator, exchange.getNonceFactory(), pair);
     if ("no orders".equals(orders.getError())) {
       return new HashMap<Long, BTCEOrder>();
     }
@@ -76,21 +60,26 @@ public class BTCETradeServiceRaw extends BTCEBasePollingService<BTCEAuthenticate
   public BTCEPlaceOrderResult placeBTCEOrder(BTCEOrder order) throws IOException {
 
     String pair = order.getPair().toLowerCase();
-    BTCEPlaceOrderReturn ret = btce.Trade(apiKey, signatureCreator, nextNonce(), pair, order.getType(), order.getRate(), order.getAmount());
+    BTCEPlaceOrderReturn ret = btce.Trade(apiKey, signatureCreator, exchange.getNonceFactory(), pair, order.getType(), order.getRate(),
+        order.getAmount());
     checkResult(ret);
     return ret.getReturnValue();
   }
 
   public BTCECancelOrderResult cancelBTCEOrder(long orderId) throws IOException {
 
-    BTCECancelOrderReturn ret = btce.CancelOrder(apiKey, signatureCreator, nextNonce(), orderId);
+    BTCECancelOrderReturn ret = btce.CancelOrder(apiKey, signatureCreator, exchange.getNonceFactory(), orderId);
+    if (MSG_BAD_STATUS.equals(ret.getError())) {
+      return null;
+    }
+
     checkResult(ret);
     return ret.getReturnValue();
   }
 
   /**
    * All parameters are nullable
-   * 
+   *
    * @param from The number of the transactions to start displaying with; default 0
    * @param count The number of transactions for displaying; default 1000
    * @param fromId The ID of the transaction to start displaying with; default 0
@@ -101,11 +90,46 @@ public class BTCETradeServiceRaw extends BTCEBasePollingService<BTCEAuthenticate
    * @param pair The pair to show the transaction; example btc_usd; all pairs
    * @return {success=1, return={tradeId={pair=btc_usd, type=sell, amount=1, rate=1, orderId=1234, timestamp=1234}}}
    */
-  public Map<Long, BTCETradeHistoryResult> getBTCETradeHistory(Long from, Long count, Long fromId, Long endId, BTCEAuthenticated.SortOrder order, Long since, Long end, String pair) throws IOException {
+  public Map<Long, BTCETradeHistoryResult> getBTCETradeHistory(Long from, Long count, Long fromId, Long endId, BTCEAuthenticated.SortOrder order,
+      Long since, Long end, String pair) throws IOException {
 
-    BTCETradeHistoryReturn btceTradeHistory = btce.TradeHistory(apiKey, signatureCreator, nextNonce(), from, count, fromId, endId, order, since, end, pair);
+    BTCETradeHistoryReturn btceTradeHistory = btce.TradeHistory(apiKey, signatureCreator, exchange.getNonceFactory(), from, count, fromId, endId,
+        order, since, end, pair);
+    String error = btceTradeHistory.getError();
+    // BTC-e returns this error if it finds no trades matching the criteria
+    if (MSG_NO_TRADES.equals(error)) {
+      return Collections.emptyMap();
+    }
+
     checkResult(btceTradeHistory);
     return btceTradeHistory.getReturnValue();
+  }
+
+  /**
+   * Get Map of transaction history from BTCE exchange. All parameters are nullable
+   *
+   * @param from The number of the transactions to start displaying with; default 0
+   * @param count The number of transactions for displaying; default 1000
+   * @param fromId The ID of the transaction to start displaying with; default 0
+   * @param endId The ID of the transaction to finish displaying with; default +inf
+   * @param order sorting ASC or DESC; default DESC
+   * @param since When to start displaying; UNIX time default 0
+   * @param end When to finish displaying; UNIX time default +inf
+   * @return Map of transaction id's to transaction history results.
+   */
+  public Map<Long, BTCETransHistoryResult> getBTCETransHistory(Long from, Long count, Long fromId, Long endId, BTCEAuthenticated.SortOrder order,
+      Long since, Long end) throws IOException {
+
+    BTCETransHistoryReturn btceTransHistory = btce.TransHistory(apiKey, signatureCreator, exchange.getNonceFactory(), from, count, fromId, endId,
+        order, since, end);
+    String error = btceTransHistory.getError();
+    // BTC-e returns this error if it finds no trades matching the criteria
+    if (MSG_NO_TRADES.equals(error)) {
+      return Collections.emptyMap();
+    }
+
+    checkResult(btceTransHistory);
+    return btceTransHistory.getReturnValue();
   }
 
 }

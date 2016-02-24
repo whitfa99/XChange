@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.dto.marketdata;
 
 import java.util.ArrayList;
@@ -31,7 +10,10 @@ import java.util.List;
  * DTO representing a collection of trades
  * </p>
  */
-public final class Trades {
+public class Trades {
+
+  private static final TradeIDComparator TRADE_ID_COMPARATOR = new TradeIDComparator();
+  private static final TradeTimestampComparator TRADE_TIMESTAMP_COMPARATOR = new TradeTimestampComparator();
 
   private final List<Trade> trades;
   private final long lastID;
@@ -39,7 +21,7 @@ public final class Trades {
 
   /**
    * Constructor
-   * 
+   *
    * @param trades
    * @param tradeSortType
    */
@@ -50,7 +32,7 @@ public final class Trades {
 
   /**
    * Constructor
-   * 
+   *
    * @param trades The list of trades
    * @param lastID
    */
@@ -62,10 +44,10 @@ public final class Trades {
 
     switch (tradeSortType) {
     case SortByTimestamp:
-      Collections.sort(this.trades, new TradeTimestampComparator());
+      Collections.sort(this.trades, TRADE_TIMESTAMP_COMPARATOR);
       break;
     case SortByID:
-      Collections.sort(this.trades, new TradeIDComparator());
+      Collections.sort(this.trades, TRADE_ID_COMPARATOR);
       break;
 
     default:
@@ -98,6 +80,7 @@ public final class Trades {
   public String toString() {
 
     StringBuilder sb = new StringBuilder("Trades\n");
+    sb.append("lastID= " + lastID + "\n");
     for (Trade trade : getTrades()) {
       sb.append("[trade=");
       sb.append(trade.toString());
@@ -110,7 +93,7 @@ public final class Trades {
     SortByTimestamp, SortByID
   }
 
-  public class TradeTimestampComparator implements Comparator<Trade> {
+  public static class TradeTimestampComparator implements Comparator<Trade> {
 
     @Override
     public int compare(Trade trade1, Trade trade2) {
@@ -119,7 +102,7 @@ public final class Trades {
     }
   }
 
-  public class TradeIDComparator implements Comparator<Trade> {
+  public static class TradeIDComparator implements Comparator<Trade> {
 
     @Override
     public int compare(Trade trade1, Trade trade2) {

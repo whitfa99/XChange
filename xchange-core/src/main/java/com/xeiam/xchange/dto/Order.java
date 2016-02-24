@@ -1,47 +1,30 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.dto;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.xeiam.xchange.currency.CurrencyPair;
 
 /**
  * Data object representing an order
  */
-public class Order {
+public abstract class Order {
 
   public enum OrderType {
 
     /**
      * Buying order (you're making an offer)
      */
-    BID,
-    /**
-     * Selling order (you're asking for offers)
-     */
+    BID, /**
+          * Selling order (you're asking for offers)
+          */
     ASK
   }
+
+  public interface IOrderFlags {
+  };
 
   /**
    * Order type i.e. bid or ask
@@ -64,16 +47,21 @@ public class Order {
   private final String id;
 
   /**
-   * The timestamp on the order
+   * The timestamp on the order according to the exchange's server, null if not provided
    */
   private final Date timestamp;
+
+  /**
+   * Any applicable order flags
+   */
+  private final Set<IOrderFlags> flags = new HashSet<IOrderFlags>();
 
   /**
    * @param type Either BID (buying) or ASK (selling)
    * @param tradableAmount The amount to trade
    * @param CurrencyPair currencyPair The identifier (e.g. BTC/USD)
    * @param id An id (usually provided by the exchange)
-   * @param timestamp the absolute time for this order
+   * @param timestamp the absolute time for this order according to the exchange's server, null if not provided
    */
   public Order(OrderType type, BigDecimal tradableAmount, CurrencyPair currencyPair, String id, Date timestamp) {
 
@@ -118,10 +106,26 @@ public class Order {
     return timestamp;
   }
 
+  public Set<IOrderFlags> getOrderFlags() {
+    return flags;
+  }
+
+  public void addOrderFlag(IOrderFlags flag) {
+    flags.add(flag);
+  }
+
+  public void setOrderFlags(Set<IOrderFlags> flags) {
+    this.flags.clear();
+    if (flags != null) {
+      this.flags.addAll(flags);
+    }
+  }
+
   @Override
   public String toString() {
 
-    return "Order [type=" + type + ", tradableAmount=" + tradableAmount + ", currencyPair=" + currencyPair + ", id=" + id + ", timestamp=" + timestamp + "]";
+    return "Order [type=" + type + ", tradableAmount=" + tradableAmount + ", currencyPair=" + currencyPair + ", id=" + id + ", timestamp=" + timestamp
+        + "]";
   }
 
   @Override
@@ -149,7 +153,7 @@ public class Order {
     if (this.type != other.type) {
       return false;
     }
-    if (this.tradableAmount != other.tradableAmount && (this.tradableAmount == null || !this.tradableAmount.equals(other.tradableAmount))) {
+    if ((this.tradableAmount == null) ? (other.tradableAmount != null) : this.tradableAmount.compareTo(other.tradableAmount) != 0) {
       return false;
     }
     if ((this.currencyPair == null) ? (other.currencyPair != null) : !this.currencyPair.equals(other.currencyPair)) {
@@ -162,5 +166,56 @@ public class Order {
       return false;
     }
     return true;
+  }
+
+  public abstract static class Builder {
+
+    protected OrderType orderType;
+    protected BigDecimal tradableAmount;
+    protected CurrencyPair currencyPair;
+    protected String id;
+    protected Date timestamp;
+
+    protected final Set<IOrderFlags> flags = new HashSet<IOrderFlags>();
+
+    protected Builder(OrderType orderType, CurrencyPair currencyPair) {
+      this.orderType = orderType;
+      this.currencyPair = currencyPair;
+    }
+
+    public Builder orderType(OrderType orderType) {
+      this.orderType = orderType;
+      return this;
+    }
+
+    public Builder tradableAmount(BigDecimal tradableAmount) {
+      this.tradableAmount = tradableAmount;
+      return this;
+    }
+
+    public Builder currencyPair(CurrencyPair currencyPair) {
+      this.currencyPair = currencyPair;
+      return this;
+    }
+
+    public Builder id(String id) {
+      this.id = id;
+      return this;
+    }
+
+    public Builder timestamp(Date timestamp) {
+      this.timestamp = timestamp;
+      return this;
+    }
+
+    public Builder flags(Set<IOrderFlags> flags) {
+      this.flags.addAll(flags);
+      return this;
+    }
+
+    public Builder flag(IOrderFlags flag) {
+      this.flags.add(flag);
+      return this;
+    }
   }
 }

@@ -1,30 +1,8 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.dto.marketdata;
 
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 
 import com.xeiam.xchange.currency.CurrencyPair;
@@ -36,18 +14,27 @@ import com.xeiam.xchange.dto.trade.LimitOrder;
  */
 public final class OrderBook {
 
+  /**
+   * the timestamp of the orderbook according to the exchange's server, null if not provided
+   */
   private Date timeStamp;
+
+  /**
+   * the asks
+   */
   private final List<LimitOrder> asks;
+
+  /**
+   * the bids
+   */
   private final List<LimitOrder> bids;
 
   /**
    * Constructor
-   * 
-   * @param timeStamp The timeStamp of the OrderBook or of the latest Update
-   * @param asks
-   *          The ASK orders
-   * @param bids
-   *          The BID orders
+   *
+   * @param timeStamp - the timestamp of the orderbook according to the exchange's server, null if not provided
+   * @param asks The ASK orders
+   * @param bids The BID orders
    */
   public OrderBook(Date timeStamp, List<LimitOrder> asks, List<LimitOrder> bids) {
 
@@ -63,108 +50,74 @@ public final class OrderBook {
 
   public List<LimitOrder> getAsks() {
 
-    Collections.sort(asks);
     return asks;
   }
 
   public List<LimitOrder> getBids() {
 
-    Collections.sort(bids);
     return bids;
   }
 
+  public List<LimitOrder> getOrders(OrderType type) {
+
+    return type == OrderType.ASK ? asks : bids;
+  }
+
   /**
-   * Given a new LimitOrder, it will replace and old matching limit order in
-   * the orderbook or simply get added. Finally, it is sorted. The timeStamp may be updated as well.
-   * 
+   * Given a new LimitOrder, it will replace and old matching limit order in the orderbook or simply get added. The timeStamp may be updated as well.
+   *
    * @param limitOrder the new LimitOrder
    */
   public void update(LimitOrder limitOrder) {
 
-    if (limitOrder.getType().equals(OrderType.ASK)) {
-
-      Iterator<LimitOrder> it = asks.iterator();
-      while (it.hasNext()) {
-        LimitOrder order = it.next();
-        if (order.getLimitPrice().compareTo(limitOrder.getLimitPrice()) == 0) { // they
-                                                                                // are
-                                                                                // equal.
-                                                                                // found
-                                                                                // it!
-          it.remove();
-          break;
-        }
-      }
-      asks.add(limitOrder); // just add it
-      Collections.sort(asks); // finally sort
-
-    }
-    else {
-
-      Iterator<LimitOrder> it = bids.iterator();
-      while (it.hasNext()) {
-        LimitOrder order = it.next();
-        if (order.getLimitPrice().compareTo(limitOrder.getLimitPrice()) == 0) { // they
-                                                                                // are
-                                                                                // equal.
-                                                                                // found
-                                                                                // it!
-          it.remove();
-          break;
-        }
-      }
-      bids.add(limitOrder); // just add it
-      Collections.sort(bids); // finally sort
-    }
+    update(getOrders(limitOrder.getType()), limitOrder);
     updateDate(limitOrder.getTimestamp());
   }
 
+  private void update(List<LimitOrder> asks, LimitOrder limitOrder) {
+
+    int idx = Collections.binarySearch(asks, limitOrder);
+    if (idx >= 0) {
+      asks.remove(idx);
+      asks.add(idx, limitOrder);
+    } else {
+      asks.add(-idx - 1, limitOrder);
+    }
+  }
+
   /**
-   * Given an OrderBookUpdate, it will replace and old matching limit order in
-   * the orderbook or simply get added. Finally, it is sorted.The timeStamp may be updated as well.
-   * 
+   * Given an OrderBookUpdate, it will replace and old matching limit order in the orderbook or simply get added. The timeStamp may be updated as
+   * well.
+   *
    * @param orderBookUpdate the new OrderBookUpdate
    */
   public void update(OrderBookUpdate orderBookUpdate) {
 
-    // First, we need to remove orders with the same limit price
-    Iterator<LimitOrder> it;
-    if (orderBookUpdate.getLimitOrder().getType() == OrderType.ASK) {
-      it = this.asks.iterator();
-    }
-    else {
-      it = this.bids.iterator();
-    }
-    while (it.hasNext()) {
-      LimitOrder order = it.next();
-      if (order.getLimitPrice().compareTo(orderBookUpdate.getLimitOrder().getLimitPrice()) == 0) { // they are equal. found it!
-        it.remove();
-        break;
-      }
+    LimitOrder limitOrder = orderBookUpdate.getLimitOrder();
+    List<LimitOrder> limitOrders = getOrders(limitOrder.getType());
+    int idx = Collections.binarySearch(limitOrders, limitOrder);
+    if (idx >= 0) {
+      limitOrders.remove(idx);
+    } else {
+      idx = -idx - 1;
     }
 
-    // If volume is not zero we need to add a new limit order with the
-    // updated amount
     if (orderBookUpdate.getTotalVolume().compareTo(BigDecimal.ZERO) != 0) {
-
-      OrderType type = orderBookUpdate.getLimitOrder().getType();
-      BigDecimal tradeableAmount = orderBookUpdate.getTotalVolume();
-      CurrencyPair currencyPair = orderBookUpdate.getLimitOrder().getCurrencyPair();
-      String id = orderBookUpdate.getLimitOrder().getId();
-      Date date = orderBookUpdate.getLimitOrder().getTimestamp();
-      BigDecimal limit = orderBookUpdate.getLimitOrder().getLimitPrice();
-      LimitOrder updatedOrder = new LimitOrder(type, tradeableAmount, currencyPair, id, date, limit);
-
-      if (orderBookUpdate.getLimitOrder().getType() == OrderType.ASK) {
-        asks.add(updatedOrder);
-        Collections.sort(asks);
-      }
-      else {
-        bids.add(updatedOrder);
-        Collections.sort(bids);
-      }
+      LimitOrder updatedOrder = withAmount(limitOrder, orderBookUpdate.getTotalVolume());
+      limitOrders.add(idx, updatedOrder);
     }
-    updateDate(orderBookUpdate.getLimitOrder().getTimestamp());
+
+    updateDate(limitOrder.getTimestamp());
+  }
+
+  private static LimitOrder withAmount(LimitOrder limitOrder, BigDecimal tradeableAmount) {
+
+    OrderType type = limitOrder.getType();
+    CurrencyPair currencyPair = limitOrder.getCurrencyPair();
+    String id = limitOrder.getId();
+    Date date = limitOrder.getTimestamp();
+    BigDecimal limit = limitOrder.getLimitPrice();
+    return new LimitOrder(type, tradeableAmount, currencyPair, id, date, limit);
   }
 
   private void updateDate(Date updateDate) {
@@ -175,9 +128,73 @@ public final class OrderBook {
   }
 
   @Override
-  public String toString() {
+  public int hashCode() {
 
-    return "Depth [timestamp: " + timeStamp + ", asks=" + asks.toString() + ", bids=" + bids.toString() + "]";
+    int hash = 17;
+    hash = 31 * hash + (this.timeStamp != null ? this.timeStamp.hashCode() : 0);
+    for (LimitOrder order : this.bids) {
+      hash = 31 * hash + order.hashCode();
+    }
+    for (LimitOrder order : this.asks) {
+      hash = 31 * hash + order.hashCode();
+    }
+    return hash;
   }
 
+  @Override
+  public boolean equals(Object obj) {
+
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    final OrderBook other = (OrderBook) obj;
+    if (this.timeStamp == null ? other.timeStamp != null : !this.timeStamp.equals(other.timeStamp)) {
+      return false;
+    }
+    if (this.bids.size() != other.bids.size()) {
+      return false;
+    }
+    for (int index = 0; index < this.bids.size(); index++) {
+      if (!this.bids.get(index).equals(other.bids.get(index))) {
+        return false;
+      }
+    }
+    if (this.asks.size() != other.asks.size()) {
+      return false;
+    }
+    for (int index = 0; index < this.asks.size(); index++) {
+      if (!this.asks.get(index).equals(other.asks.get(index))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Identical to {@link #equals(Object) equals} method except that this ignores different timestamps. In other words, this version of equals returns
+   * true if the order internal to the OrderBooks are equal but their timestamps are unequal. It returns false if false if any order between the two
+   * are different.
+   *
+   * @param ob
+   * @return
+   */
+  public boolean ordersEqual(OrderBook ob) {
+    Date timestamp = new Date();
+    if (this != null && ob != null) {
+      OrderBook thisOb = new OrderBook(timestamp, this.getAsks(), this.getBids());
+      OrderBook thatOb = new OrderBook(timestamp, ob.getAsks(), ob.getBids());
+      return thisOb.equals(thatOb);
+    } else {
+      return this.equals(ob);
+    }
+  }
+
+  @Override
+  public String toString() {
+
+    return "OrderBook [timestamp: " + timeStamp + ", asks=" + asks.toString() + ", bids=" + bids.toString() + "]";
+  }
 }

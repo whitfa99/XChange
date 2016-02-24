@@ -1,74 +1,59 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitstamp.service.polling;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+
+import com.xeiam.xchange.Exchange;
+import com.xeiam.xchange.bitstamp.BitstampAuthenticated;
+import com.xeiam.xchange.bitstamp.dto.account.BitstampBalance;
+import com.xeiam.xchange.bitstamp.dto.account.BitstampDepositAddress;
+import com.xeiam.xchange.bitstamp.dto.account.BitstampRippleDepositAddress;
+import com.xeiam.xchange.bitstamp.dto.account.BitstampWithdrawal;
+import com.xeiam.xchange.bitstamp.dto.account.DepositTransaction;
+import com.xeiam.xchange.bitstamp.dto.account.WithdrawalRequest;
+import com.xeiam.xchange.bitstamp.service.BitstampDigest;
+import com.xeiam.xchange.exceptions.ExchangeException;
 
 import si.mazi.rescu.RestProxyFactory;
-
-import com.xeiam.xchange.ExchangeException;
-import com.xeiam.xchange.ExchangeSpecification;
-import com.xeiam.xchange.bitstamp.BitstampAuthenticated;
-import com.xeiam.xchange.bitstamp.BitstampUtils;
-import com.xeiam.xchange.bitstamp.dto.account.BitstampBalance;
-import com.xeiam.xchange.bitstamp.dto.account.BitstampBooleanResponse;
-import com.xeiam.xchange.bitstamp.dto.account.BitstampDepositAddress;
-import com.xeiam.xchange.bitstamp.service.BitstampBaseService;
-import com.xeiam.xchange.bitstamp.service.BitstampDigest;
 
 /**
  * @author gnandiga
  */
-public class BitstampAccountServiceRaw extends BitstampBaseService {
+public class BitstampAccountServiceRaw extends BitstampBasePollingService {
 
   private final BitstampDigest signatureCreator;
   private final BitstampAuthenticated bitstampAuthenticated;
 
   /**
-   * Initialize common properties from the exchange specification
-   * 
-   * @param exchangeSpecification The {@link com.xeiam.xchange.ExchangeSpecification}
+   * Constructor
+   *
+   * @param exchange
    */
-  protected BitstampAccountServiceRaw(ExchangeSpecification exchangeSpecification) {
+  protected BitstampAccountServiceRaw(Exchange exchange) {
 
-    super(exchangeSpecification);
+    super(exchange);
 
-    this.bitstampAuthenticated = RestProxyFactory.createProxy(BitstampAuthenticated.class, exchangeSpecification.getSslUri());
-    this.signatureCreator = BitstampDigest.createInstance(exchangeSpecification.getSecretKey(), exchangeSpecification.getUserName(), exchangeSpecification.getApiKey());
+    this.bitstampAuthenticated = RestProxyFactory.createProxy(BitstampAuthenticated.class, exchange.getExchangeSpecification().getSslUri());
+    this.signatureCreator = BitstampDigest.createInstance(exchange.getExchangeSpecification().getSecretKey(),
+        exchange.getExchangeSpecification().getUserName(), exchange.getExchangeSpecification().getApiKey());
   }
 
   public BitstampBalance getBitstampBalance() throws IOException {
 
-    BitstampBalance bitstampBalance = bitstampAuthenticated.getBalance(exchangeSpecification.getApiKey(), signatureCreator, BitstampUtils.getNonce());
+    BitstampBalance bitstampBalance = bitstampAuthenticated.getBalance(exchange.getExchangeSpecification().getApiKey(), signatureCreator,
+        exchange.getNonceFactory());
     if (bitstampBalance.getError() != null) {
       throw new ExchangeException("Error getting balance. " + bitstampBalance.getError());
     }
     return bitstampBalance;
   }
 
-  public BitstampBooleanResponse withdrawBitstampFunds(final BigDecimal amount, final String address) throws IOException {
+  public BitstampWithdrawal withdrawBitstampFunds(BigDecimal amount, final String address) throws IOException {
 
-    final BitstampBooleanResponse response = bitstampAuthenticated.withdrawBitcoin(exchangeSpecification.getApiKey(), signatureCreator, BitstampUtils.getNonce(), amount, address);
+    final BitstampWithdrawal response = bitstampAuthenticated.withdrawBitcoin(exchange.getExchangeSpecification().getApiKey(), signatureCreator,
+        exchange.getNonceFactory(), amount, address);
     if (response.getError() != null) {
       throw new ExchangeException("Withdrawing funds from Bitstamp failed: " + response.getError());
     }
@@ -78,10 +63,42 @@ public class BitstampAccountServiceRaw extends BitstampBaseService {
 
   public BitstampDepositAddress getBitstampBitcoinDepositAddress() throws IOException {
 
-    final BitstampDepositAddress response = bitstampAuthenticated.getBitcoinDepositAddress(exchangeSpecification.getApiKey(), signatureCreator, BitstampUtils.getNonce());
+    final BitstampDepositAddress response = bitstampAuthenticated.getBitcoinDepositAddress(exchange.getExchangeSpecification().getApiKey(),
+        signatureCreator, exchange.getNonceFactory());
     if (response.getError() != null) {
       throw new ExchangeException("Requesting Bitcoin deposit address failed: " + response.getError());
     }
     return response;
   }
+
+  public BitstampRippleDepositAddress getRippleDepositAddress() throws IOException {
+
+    return bitstampAuthenticated.getRippleDepositAddress(exchange.getExchangeSpecification().getApiKey(), signatureCreator,
+        exchange.getNonceFactory());
+  }
+
+  /**
+   * @return true if withdrawal was successful. Note that due to a bug on Bitstamp's side, withdrawal always fails if two-factor authentication is
+   *         enabled for the account.
+   */
+  public boolean withdrawToRipple(BigDecimal amount, String currency, String rippleAddress) throws IOException {
+
+    return bitstampAuthenticated.withdrawToRipple(exchange.getExchangeSpecification().getApiKey(), signatureCreator, exchange.getNonceFactory(),
+        amount, currency, rippleAddress);
+  }
+
+  public List<DepositTransaction> getUnconfirmedDeposits() throws IOException {
+
+    final List<DepositTransaction> response = Arrays.asList(
+        bitstampAuthenticated.getUnconfirmedDeposits(exchange.getExchangeSpecification().getApiKey(), signatureCreator, exchange.getNonceFactory()));
+    return response;
+  }
+
+  public List<WithdrawalRequest> getWithdrawalRequests() throws IOException {
+
+    final List<WithdrawalRequest> response = Arrays.asList(
+        bitstampAuthenticated.getWithdrawalRequests(exchange.getExchangeSpecification().getApiKey(), signatureCreator, exchange.getNonceFactory()));
+    return response;
+  }
+
 }

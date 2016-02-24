@@ -1,28 +1,7 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.examples.bitcoinium;
 
 import java.io.IOException;
-import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
@@ -35,9 +14,9 @@ import com.xeiam.xchange.ExchangeFactory;
 import com.xeiam.xchange.ExchangeSpecification;
 import com.xeiam.xchange.bitcoinium.BitcoiniumExchange;
 import com.xeiam.xchange.bitcoinium.dto.marketdata.BitcoiniumOrderbook;
+import com.xeiam.xchange.bitcoinium.dto.marketdata.BitcoiniumOrderbook.CondensedOrder;
 import com.xeiam.xchange.bitcoinium.service.polling.BitcoiniumMarketDataServiceRaw;
 import com.xeiam.xchange.currency.Currencies;
-import com.xeiam.xchange.utils.CertHelper;
 import com.xeiam.xchart.Chart;
 import com.xeiam.xchart.ChartBuilder;
 import com.xeiam.xchart.Series;
@@ -48,22 +27,21 @@ import com.xeiam.xchart.XChartPanel;
 
 /**
  * Demonstrates plotting an OrderBook with XChart
- * 
+ *
  * @author timmolter
  */
 public class BitcoiniumRealtimeOrderbookDemo {
 
   BitcoiniumMarketDataServiceRaw bitcoiniumMarketDataService;
   public static final String BIDS_SERIES_NAME = "bids";
-  List<BigDecimal> xAxisBidData;
-  List<BigDecimal> yAxisBidData;
+  List<Float> xAxisBidData;
+  List<Float> yAxisBidData;
   public static final String ASKS_SERIES_NAME = "asks";
-  List<BigDecimal> xAxisAskData;
-  List<BigDecimal> yAxisAskData;
+  List<Float> xAxisAskData;
+  List<Float> yAxisAskData;
 
   public static void main(String[] args) throws Exception {
 
-    CertHelper.trustAllCerts();
     final BitcoiniumRealtimeOrderbookDemo bitcoiniumRealtimeTickerDemo = new BitcoiniumRealtimeOrderbookDemo();
     bitcoiniumRealtimeTickerDemo.go();
   }
@@ -71,8 +49,9 @@ public class BitcoiniumRealtimeOrderbookDemo {
   private void go() throws IOException {
 
     ExchangeSpecification exchangeSpecification = new ExchangeSpecification(BitcoiniumExchange.class.getName());
-    exchangeSpecification.setApiKey("6seon0iepta86txluchde");
-    // Use the factory to get the Open Exchange Rates exchange API
+    // exchangeSpecification.setPlainTextUri("http://openexchangerates.org");
+    exchangeSpecification.setApiKey("42djci5kmbtyzrvglfdw3e2dgmh5mr37");
+    System.out.println(exchangeSpecification.toString());
     Exchange bitcoiniumExchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
     // Interested in the public polling market data feed (no authentication)
@@ -127,7 +106,8 @@ public class BitcoiniumRealtimeOrderbookDemo {
     updateData();
 
     // create chart
-    Chart chart = new ChartBuilder().chartType(ChartType.Area).width(800).height(400).title("Real-time Bitcoinium Order Book - BITSTAMP_BTC_USD").xAxisTitle("BTC").yAxisTitle("USD").build();
+    Chart chart = new ChartBuilder().chartType(ChartType.Area).width(800).height(400).title("Real-time Bitcoinium Order Book - BITSTAMP_BTC_USD")
+        .xAxisTitle("BTC").yAxisTitle("USD").build();
     chart.getStyleManager().setLegendPosition(LegendPosition.InsideNE);
 
     // add series
@@ -143,21 +123,43 @@ public class BitcoiniumRealtimeOrderbookDemo {
 
     // /////////////////////////////////
     // Get the latest order book data for BTC/USD - MTGOX
-    BitcoiniumOrderbook bitcoiniumOrderbook = bitcoiniumMarketDataService.getBitcoiniumOrderbook(Currencies.BTC, "BITSTAMP_USD", "10p");
+    BitcoiniumOrderbook bitcoiniumOrderbook = bitcoiniumMarketDataService.getBitcoiniumOrderbook(Currencies.BTC, "BITSTAMP_USD", "TEN_PERCENT");
 
     System.out.println(bitcoiniumOrderbook.toString());
 
     // build ticker history chart series data
     // Bids Series
-    Collections.reverse(bitcoiniumOrderbook.getBidPriceList());
-    Collections.reverse(bitcoiniumOrderbook.getBidVolumeList());
-    xAxisBidData = bitcoiniumOrderbook.getBidPriceList();
-    yAxisBidData = bitcoiniumOrderbook.getBidVolumeList();
+
+    List<Float> bidsPriceData = getPriceData(bitcoiniumOrderbook.getBids());
+    Collections.reverse(bidsPriceData);
+    List<Float> bidsVolumeData = getVolumeData(bitcoiniumOrderbook.getBids());
+    Collections.reverse(bidsVolumeData);
+
+    xAxisBidData = bidsPriceData;
+    yAxisBidData = bidsVolumeData;
 
     // Asks Series
-    xAxisAskData = bitcoiniumOrderbook.getAskPriceList();
-    yAxisAskData = bitcoiniumOrderbook.getAskVolumeList();
+    xAxisAskData = getPriceData(bitcoiniumOrderbook.getAsks());
+    yAxisAskData = getVolumeData(bitcoiniumOrderbook.getAsks());
 
     // /////////////////////////////////
+  }
+
+  private static List<Float> getPriceData(CondensedOrder[] condensedOrders) {
+
+    List<Float> priceData = new ArrayList<Float>();
+    for (int i = 0; i < condensedOrders.length; i++) {
+      priceData.add(condensedOrders[i].getPrice().floatValue());
+    }
+    return priceData;
+  }
+
+  private static List<Float> getVolumeData(CondensedOrder[] condensedOrders) {
+
+    List<Float> volumeData = new ArrayList<Float>();
+    for (int i = 0; i < condensedOrders.length; i++) {
+      volumeData.add(condensedOrders[i].getVolume().floatValue());
+    }
+    return volumeData;
   }
 }

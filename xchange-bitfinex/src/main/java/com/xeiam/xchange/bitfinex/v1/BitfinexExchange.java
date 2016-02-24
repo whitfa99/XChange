@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitfinex.v1;
 
 import com.xeiam.xchange.BaseExchange;
@@ -27,32 +6,19 @@ import com.xeiam.xchange.ExchangeSpecification;
 import com.xeiam.xchange.bitfinex.v1.service.polling.BitfinexAccountService;
 import com.xeiam.xchange.bitfinex.v1.service.polling.BitfinexMarketDataService;
 import com.xeiam.xchange.bitfinex.v1.service.polling.BitfinexTradeService;
+import com.xeiam.xchange.utils.nonce.AtomicLongIncrementalTime2013NonceFactory;
 
-/**
- * <p>
- * Exchange implementation to provide the following to applications:
- * </p>
- * <ul>
- * <li>A wrapper for the Bitfinex exchange API</li>
- * </ul>
- */
+import si.mazi.rescu.SynchronizedValueFactory;
+
 public class BitfinexExchange extends BaseExchange implements Exchange {
 
-  /**
-   * Default constructor for ExchangeFactory
-   */
-  public BitfinexExchange() {
-
-  }
+  private SynchronizedValueFactory<Long> nonceFactory = new AtomicLongIncrementalTime2013NonceFactory();
 
   @Override
-  public void applySpecification(ExchangeSpecification exchangeSpecification) {
-
-    super.applySpecification(exchangeSpecification);
-
-    this.pollingMarketDataService = new BitfinexMarketDataService(exchangeSpecification);
-    this.pollingAccountService = new BitfinexAccountService(exchangeSpecification);
-    this.pollingTradeService = new BitfinexTradeService(exchangeSpecification);
+  protected void initServices() {
+    this.pollingMarketDataService = new BitfinexMarketDataService(this);
+    this.pollingAccountService = new BitfinexAccountService(this);
+    this.pollingTradeService = new BitfinexTradeService(this);
   }
 
   @Override
@@ -66,5 +32,11 @@ public class BitfinexExchange extends BaseExchange implements Exchange {
     exchangeSpecification.setExchangeDescription("BitFinex is a bitcoin exchange.");
 
     return exchangeSpecification;
+  }
+
+  @Override
+  public SynchronizedValueFactory<Long> getNonceFactory() {
+
+    return nonceFactory;
   }
 }

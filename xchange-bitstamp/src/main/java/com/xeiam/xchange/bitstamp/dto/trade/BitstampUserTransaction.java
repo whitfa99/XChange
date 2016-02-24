@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitstamp.dto.trade;
 
 import java.math.BigDecimal;
@@ -36,8 +15,10 @@ public final class BitstampUserTransaction {
   private final long id;
   private final long order_id;
   private final TransactionType type;
+  /** USD amount, negative -> BID, positive -> ASK */
   private final BigDecimal usd;
   private final BigDecimal btc;
+  /** price, has the reciprocal sign compared to 'usd' value */
   private final BigDecimal btc_usd;
   private final BigDecimal fee;
 
@@ -53,8 +34,9 @@ public final class BitstampUserTransaction {
    * @param btc_usd
    * @param fee
    */
-  public BitstampUserTransaction(@JsonProperty("datetime") String datetime, @JsonProperty("id") long id, @JsonProperty("order_id") long order_id, @JsonProperty("type") @JsonDeserialize(
-      using = BitstampTransactionTypeDeserializer.class) TransactionType type, @JsonProperty("usd") BigDecimal usd, @JsonProperty("btc") BigDecimal btc, @JsonProperty("btc_usd") BigDecimal btc_usd,
+  public BitstampUserTransaction(@JsonProperty("datetime") String datetime, @JsonProperty("id") long id, @JsonProperty("order_id") long order_id,
+      @JsonProperty("type") @JsonDeserialize(using = BitstampTransactionTypeDeserializer.class) TransactionType type,
+      @JsonProperty("usd") BigDecimal usd, @JsonProperty("btc") BigDecimal btc, @JsonProperty("btc_usd") BigDecimal btc_usd,
       @JsonProperty("fee") BigDecimal fee) {
 
     this.datetime = datetime;
@@ -129,6 +111,9 @@ public final class BitstampUserTransaction {
   }
 
   public enum TransactionType {
-    deposit, withdrawal, trade
+    deposit, withdrawal, trade, rippleWithdrawal, rippleDeposit, type5_reseverd, type6_reseved, type7_reserved /*
+                                                                                                                * reseved so parsing won 't break in
+                                                                                                                * case Bitstamp adds new types
+                                                                                                                */
   }
 }

@@ -1,118 +1,295 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.btcchina.service.polling;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.RestProxyFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.btcchina.BTCChina;
-import com.xeiam.xchange.btcchina.BTCChinaUtils;
-import com.xeiam.xchange.btcchina.dto.BTCChinaResponse;
-import com.xeiam.xchange.btcchina.dto.trade.BTCChinaOrders;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaBuyIcebergOrderRequest;
 import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaBuyOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaBuyStopOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaCancelIcebergOrderRequest;
 import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaCancelOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaCancelStopOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetIcebergOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetIcebergOrdersRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetMarketDepthRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetOrderRequest;
 import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetOrdersRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetStopOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaGetStopOrdersRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaSellIcebergOrderRequest;
 import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaSellOrderRequest;
+import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaSellStopOrderRequest;
 import com.xeiam.xchange.btcchina.dto.trade.request.BTCChinaTransactionsRequest;
 import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaBooleanResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetIcebergOrderResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetIcebergOrdersResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetMarketDepthResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetOrderResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetOrdersResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetStopOrderResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaGetStopOrdersResponse;
+import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaIntegerResponse;
 import com.xeiam.xchange.btcchina.dto.trade.response.BTCChinaTransactionsResponse;
-import com.xeiam.xchange.btcchina.service.BTCChinaBaseService;
-import com.xeiam.xchange.btcchina.service.BTCChinaDigest;
-import com.xeiam.xchange.dto.Order.OrderType;
-import com.xeiam.xchange.utils.Assert;
+
+import si.mazi.rescu.HttpStatusIOException;
 
 /**
+ * Implementation of the trade service for BTCChina.
+ * <ul>
+ * <li>Provides access to trade functions</li>
+ * </ul>
+ *
  * @author ObsessiveOrange
- *         <p>
- *         Implementation of the trade service for BTCChina
- *         </p>
- *         <ul>
- *         <li>Provides access to trade functions</li>
- *         </ul>
  */
-public class BTCChinaTradeServiceRaw extends BTCChinaBaseService {
+public class BTCChinaTradeServiceRaw extends BTCChinaBasePollingService {
 
-  /**
-   * Configured from the super class reading of the exchange specification
-   */
-  private final BTCChina btcchina;
-  private ParamsDigest signatureCreator;
+  private final Logger log = LoggerFactory.getLogger(BTCChinaTradeServiceRaw.class);
 
   /**
    * Constructor
-   * 
-   * @param exchangeSpecification
+   *
+   * @param exchange
    */
-  public BTCChinaTradeServiceRaw(ExchangeSpecification exchangeSpecification) {
+  public BTCChinaTradeServiceRaw(Exchange exchange) {
 
-    super(exchangeSpecification);
-
-    Assert.notNull(exchangeSpecification.getSslUri(), "Exchange specification URI cannot be null");
-    this.btcchina = RestProxyFactory.createProxy(BTCChina.class, exchangeSpecification.getSslUri());
-    signatureCreator = BTCChinaDigest.createInstance(exchangeSpecification.getApiKey(), exchangeSpecification.getSecretKey());
+    super(exchange);
   }
 
   /**
-   * @return Set of BTCChina Orders
+   * @see BTCChinaGetMarketDepthRequest#BTCChinaGetMarketDepthRequest(Integer, String)
+   * @see BTCChina#getMarketDepth(si.mazi.rescu.ParamsDigest, si.mazi.rescu.SynchronizedValueFactory, BTCChinaGetMarketDepthRequest)
+   */
+  public BTCChinaGetMarketDepthResponse getMarketDepth(Integer limit, String market) throws IOException {
+
+    BTCChinaGetMarketDepthRequest request = new BTCChinaGetMarketDepthRequest(limit, market);
+    BTCChinaGetMarketDepthResponse response = btcChina.getMarketDepth(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * Get order status.
+   *
+   * @param id the order id.
+   * @return order status.
+   * @throws IOException indicates I/O exception.
+   */
+  public BTCChinaGetOrderResponse getBTCChinaOrder(int id) throws IOException {
+
+    BTCChinaGetOrderRequest request = new BTCChinaGetOrderRequest(id);
+    BTCChinaGetOrderResponse returnObject = btcChina.getOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(returnObject);
+  }
+
+  /**
+   * Get order status.
+   *
+   * @param id the order id.
+   * @param market BTCCNY | LTCCNY | LTCBTC
+   * @return order status.
+   * @throws IOException indicates I/O exception.
+   */
+  public BTCChinaGetOrderResponse getBTCChinaOrder(int id, String market) throws IOException {
+
+    BTCChinaGetOrderRequest request = new BTCChinaGetOrderRequest(id, market);
+    BTCChinaGetOrderResponse returnObject = btcChina.getOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(returnObject);
+  }
+
+  public BTCChinaGetOrderResponse getBTCChinaOrder(int id, String market, Boolean withdetail) throws IOException {
+
+    BTCChinaGetOrderRequest request = new BTCChinaGetOrderRequest(id, market, withdetail);
+    BTCChinaGetOrderResponse response = btcChina.getOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaGetOrdersRequest#BTCChinaGetOrdersRequest(Boolean, String, Integer, Integer)
+   */
+  public BTCChinaGetOrdersResponse getBTCChinaOrders(Boolean openOnly, String market, Integer limit, Integer offset) throws IOException {
+
+    BTCChinaGetOrdersRequest request = new BTCChinaGetOrdersRequest(openOnly, market, limit, offset);
+    BTCChinaGetOrdersResponse response = btcChina.getOrders(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaGetOrdersRequest#BTCChinaGetOrdersRequest(Boolean, String, Integer, Integer, Integer, Boolean)
+   */
+  public BTCChinaGetOrdersResponse getBTCChinaOrders(Boolean openOnly, String market, Integer limit, Integer offset, Integer since,
+      Boolean withdetail) throws IOException {
+
+    BTCChinaGetOrdersRequest request = new BTCChinaGetOrdersRequest(openOnly, market, limit, offset, since, withdetail);
+    BTCChinaGetOrdersResponse response = btcChina.getOrders(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * Place a buy order.
+   *
+   * @param price The price in quote currency to buy 1 base currency. Max 2 decimals for BTC/CNY and LTC/CNY markets. 4 decimals for LTC/BTC market.
+   *        Market order is executed by setting price to 'null'.
+   * @param amount The amount of LTC/BTC to buy. Supports 4 decimal places for BTC and 3 decimal places for LTC.
+   * @param market [ BTCCNY | LTCCNY | LTCBTC ]
+   * @return order ID.
    * @throws IOException
    */
-  public BTCChinaResponse<BTCChinaOrders> getBTCChinaOpenOrders() throws IOException {
+  public BTCChinaIntegerResponse buy(BigDecimal price, BigDecimal amount, String market) throws IOException {
 
-    return btcchina.getOrders(signatureCreator, BTCChinaUtils.getNonce(), new BTCChinaGetOrdersRequest());
+    BTCChinaBuyOrderRequest request = new BTCChinaBuyOrderRequest(price, amount, market);
+    final BTCChinaIntegerResponse response;
+    try {
+      response = btcChina.buyOrder2(signatureCreator, exchange.getNonceFactory(), request);
+    } catch (HttpStatusIOException e) {
+      if (e.getHttpStatusCode() == 401) {
+        log.error("{}, request: {}, response: {}", e.getMessage(), request, e.getHttpBody());
+      }
+      throw e;
+    }
+    return checkResult(response);
   }
 
   /**
-   * @return BTCChinaBooleanResponse of new limit order status.
+   * Place a sell order.
+   *
+   * @param price The price in quote currency to sell 1 base currency. Max 2 decimals for BTC/CNY and LTC/CNY markets. 4 decimals for LTC/BTC market.
+   *        Market order is executed by setting price to 'null'.
+   * @param amount The amount of LTC/BTC to sell. Supports 4 decimal places for BTC and 3 decimal places for LTC.
+   * @param market [ BTCCNY | LTCCNY | LTCBTC ]
+   * @return order ID.
+   * @throws IOException
    */
-  public BTCChinaBooleanResponse placeBTCChinaLimitOrder(BigDecimal price, BigDecimal amount, OrderType orderType) throws IOException {
+  public BTCChinaIntegerResponse sell(BigDecimal price, BigDecimal amount, String market) throws IOException {
 
-    BTCChinaBooleanResponse response = null;
-
-    if (orderType == OrderType.BID) {
-
-      response = btcchina.buyOrder2(signatureCreator, BTCChinaUtils.getNonce(), new BTCChinaBuyOrderRequest(price, amount));
+    BTCChinaSellOrderRequest request = new BTCChinaSellOrderRequest(price, amount, market);
+    final BTCChinaIntegerResponse response;
+    try {
+      response = btcChina.sellOrder2(signatureCreator, exchange.getNonceFactory(), request);
+    } catch (HttpStatusIOException e) {
+      if (e.getHttpStatusCode() == 401) {
+        log.error("{}, request: {}, response: {}", e.getMessage(), request, e.getHttpBody());
+      }
+      throw e;
     }
-    else {
-      response = btcchina.sellOrder2(signatureCreator, BTCChinaUtils.getNonce(), new BTCChinaSellOrderRequest(price, amount));
-    }
-
-    return response;
+    return checkResult(response);
   }
 
   /**
    * @return BTCChinaBooleanResponse of limit order cancellation status.
    */
-  public BTCChinaBooleanResponse cancelBTCChinaOrder(String orderId) throws IOException {
+  public BTCChinaBooleanResponse cancelBTCChinaOrder(int id) throws IOException {
 
-    return btcchina.cancelOrder(signatureCreator, BTCChinaUtils.getNonce(), new BTCChinaCancelOrderRequest(Long.parseLong(orderId)));
+    return checkResult(btcChina.cancelOrder(signatureCreator, exchange.getNonceFactory(), new BTCChinaCancelOrderRequest(id)));
   }
 
   public BTCChinaTransactionsResponse getTransactions() throws IOException {
 
-    return btcchina.getTransactions(signatureCreator, BTCChinaUtils.getNonce(), new BTCChinaTransactionsRequest());
+    return checkResult(btcChina.getTransactions(signatureCreator, exchange.getNonceFactory(), new BTCChinaTransactionsRequest()));
+  }
+
+  /**
+   * @see BTCChinaTransactionsRequest#BTCChinaTransactionsRequest(String, Integer, Integer, Integer, String)
+   */
+  public BTCChinaTransactionsResponse getTransactions(String type, Integer limit, Integer offset, Integer since, String sincetype)
+      throws IOException {
+
+    BTCChinaTransactionsRequest request = new BTCChinaTransactionsRequest(type, limit, offset, since, sincetype);
+    BTCChinaTransactionsResponse response = btcChina.getTransactions(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  public BTCChinaIntegerResponse buyIcebergOrder(BigDecimal price, BigDecimal amount, BigDecimal disclosedAmount, BigDecimal variance, String market)
+      throws IOException {
+
+    BTCChinaBuyIcebergOrderRequest request = new BTCChinaBuyIcebergOrderRequest(price, amount, disclosedAmount, variance, market);
+    BTCChinaIntegerResponse response = btcChina.buyIcebergOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  public BTCChinaIntegerResponse sellIcebergOrder(BigDecimal price, BigDecimal amount, BigDecimal disclosedAmount, BigDecimal variance, String market)
+      throws IOException {
+
+    BTCChinaSellIcebergOrderRequest request = new BTCChinaSellIcebergOrderRequest(price, amount, disclosedAmount, variance, market);
+    BTCChinaIntegerResponse response = btcChina.sellIcebergOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  public BTCChinaGetIcebergOrderResponse getIcebergOrders(int id, String market) throws IOException {
+
+    BTCChinaGetIcebergOrderRequest request = new BTCChinaGetIcebergOrderRequest(id, market);
+    BTCChinaGetIcebergOrderResponse response = btcChina.getIcebergOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  public BTCChinaGetIcebergOrdersResponse getIcebergOrders(Integer limit, Integer offset, String market) throws IOException {
+
+    BTCChinaGetIcebergOrdersRequest request = new BTCChinaGetIcebergOrdersRequest(limit, offset, market);
+    BTCChinaGetIcebergOrdersResponse response = btcChina.getIcebergOrders(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  public BTCChinaBooleanResponse cancelIcebergOrder(int id, String market) throws IOException {
+
+    BTCChinaCancelIcebergOrderRequest request = new BTCChinaCancelIcebergOrderRequest(id, market);
+    BTCChinaBooleanResponse response = btcChina.cancelIcebergOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaBuyStopOrderRequest
+   */
+  public BTCChinaIntegerResponse buyStopOrder(BigDecimal stopPrice, BigDecimal price, BigDecimal amount, BigDecimal trailingAmount,
+      BigDecimal trailingPercentage, String market) throws IOException {
+
+    BTCChinaBuyStopOrderRequest request = new BTCChinaBuyStopOrderRequest(stopPrice, price, amount, trailingAmount, trailingPercentage, market);
+    BTCChinaIntegerResponse response = btcChina.buyStopOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaSellStopOrderRequest
+   */
+  public BTCChinaIntegerResponse sellStopOrder(BigDecimal stopPrice, BigDecimal price, BigDecimal amount, BigDecimal trailingAmount,
+      BigDecimal trailingPercentage, String market) throws IOException {
+
+    BTCChinaSellStopOrderRequest request = new BTCChinaSellStopOrderRequest(stopPrice, price, amount, trailingAmount, trailingPercentage, market);
+    BTCChinaIntegerResponse response = btcChina.sellStopOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaGetStopOrderRequest
+   */
+  public BTCChinaGetStopOrderResponse getStopOrder(int id, String market) throws IOException {
+
+    BTCChinaGetStopOrderRequest request = new BTCChinaGetStopOrderRequest(id, market);
+    BTCChinaGetStopOrderResponse response = btcChina.getStopOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaGetStopOrdersRequest
+   */
+  public BTCChinaGetStopOrdersResponse getStopOrders(String status, String type, BigDecimal stopPrice, Integer limit, Integer offset, String market)
+      throws IOException {
+
+    BTCChinaGetStopOrdersRequest request = new BTCChinaGetStopOrdersRequest(status, type, stopPrice, limit, offset, market);
+    BTCChinaGetStopOrdersResponse response = btcChina.getStopOrders(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
+  }
+
+  /**
+   * @see BTCChinaCancelStopOrderRequest
+   */
+  public BTCChinaBooleanResponse cancelStopOrder(int id, String market) throws IOException {
+
+    BTCChinaCancelStopOrderRequest request = new BTCChinaCancelStopOrderRequest(id, market);
+    BTCChinaBooleanResponse response = btcChina.cancelStopOrder(signatureCreator, exchange.getNonceFactory(), request);
+    return checkResult(response);
   }
 
 }

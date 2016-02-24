@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.kraken;
 
 import java.math.BigDecimal;
@@ -30,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.xeiam.xchange.currency.Currencies;
 import com.xeiam.xchange.currency.CurrencyPair;
@@ -37,13 +17,15 @@ import com.xeiam.xchange.dto.Order.OrderType;
 import com.xeiam.xchange.dto.account.AccountInfo;
 import com.xeiam.xchange.dto.marketdata.OrderBook;
 import com.xeiam.xchange.dto.marketdata.Ticker;
-import com.xeiam.xchange.dto.marketdata.Ticker.TickerBuilder;
 import com.xeiam.xchange.dto.marketdata.Trade;
 import com.xeiam.xchange.dto.marketdata.Trades;
 import com.xeiam.xchange.dto.marketdata.Trades.TradeSortType;
 import com.xeiam.xchange.dto.trade.LimitOrder;
 import com.xeiam.xchange.dto.trade.OpenOrders;
+import com.xeiam.xchange.dto.trade.UserTrade;
+import com.xeiam.xchange.dto.trade.UserTrades;
 import com.xeiam.xchange.dto.trade.Wallet;
+import com.xeiam.xchange.kraken.dto.account.KrakenDepositAddress;
 import com.xeiam.xchange.kraken.dto.marketdata.KrakenDepth;
 import com.xeiam.xchange.kraken.dto.marketdata.KrakenPublicOrder;
 import com.xeiam.xchange.kraken.dto.marketdata.KrakenPublicTrade;
@@ -53,24 +35,60 @@ import com.xeiam.xchange.kraken.dto.trade.KrakenOrderDescription;
 import com.xeiam.xchange.kraken.dto.trade.KrakenOrderResponse;
 import com.xeiam.xchange.kraken.dto.trade.KrakenTrade;
 import com.xeiam.xchange.kraken.dto.trade.KrakenType;
+import com.xeiam.xchange.kraken.dto.trade.KrakenUserTrade;
 
 public class KrakenAdapters {
 
   public static OrderBook adaptOrderBook(KrakenDepth krakenDepth, CurrencyPair currencyPair) {
 
-    List<LimitOrder> bids = KrakenAdapters.adaptOrders(krakenDepth.getBids(), currencyPair, OrderType.BID);
-    List<LimitOrder> asks = KrakenAdapters.adaptOrders(krakenDepth.getAsks(), currencyPair, OrderType.ASK);
-    return new OrderBook(null, asks, bids);
+    OrdersContainer asksOrdersContainer = adaptOrders(krakenDepth.getAsks(), currencyPair, OrderType.ASK);
+    OrdersContainer bidsOrdersContainer = adaptOrders(krakenDepth.getBids(), currencyPair, OrderType.BID);
+
+    return new OrderBook(new Date(Math.max(asksOrdersContainer.getTimestamp(), bidsOrdersContainer.getTimestamp())),
+        asksOrdersContainer.getLimitOrders(), bidsOrdersContainer.getLimitOrders());
   }
 
-  public static List<LimitOrder> adaptOrders(List<KrakenPublicOrder> orders, CurrencyPair currencyPair, OrderType orderType) {
+  public static OrdersContainer adaptOrders(List<KrakenPublicOrder> orders, CurrencyPair currencyPair, OrderType orderType) {
 
+    long maxTimestamp = -1 * Long.MAX_VALUE;
     List<LimitOrder> limitOrders = new ArrayList<LimitOrder>(orders.size());
+
     for (KrakenPublicOrder order : orders) {
+      if (order.getTimestamp() > maxTimestamp) {
+        maxTimestamp = order.getTimestamp();
+      }
       limitOrders.add(adaptOrder(order, orderType, currencyPair));
     }
+    return new OrdersContainer(maxTimestamp * 1000, limitOrders);
 
-    return limitOrders;
+  }
+
+  public static class OrdersContainer {
+
+    private final long timestamp;
+    private final List<LimitOrder> limitOrders;
+
+    /**
+     * Constructor
+     *
+     * @param timestamp
+     * @param limitOrders
+     */
+    public OrdersContainer(long timestamp, List<LimitOrder> limitOrders) {
+
+      this.timestamp = timestamp;
+      this.limitOrders = limitOrders;
+    }
+
+    public long getTimestamp() {
+
+      return timestamp;
+    }
+
+    public List<LimitOrder> getLimitOrders() {
+
+      return limitOrders;
+    }
   }
 
   public static LimitOrder adaptOrder(KrakenPublicOrder order, OrderType orderType, CurrencyPair currencyPair) {
@@ -83,14 +101,14 @@ public class KrakenAdapters {
 
   public static Ticker adaptTicker(KrakenTicker krakenTicker, CurrencyPair currencyPair) {
 
-    TickerBuilder builder = new TickerBuilder();
-    builder.withAsk(krakenTicker.getAsk().getPrice());
-    builder.withBid(krakenTicker.getBid().getPrice());
-    builder.withLast(krakenTicker.getClose().getPrice());
-    builder.withHigh(krakenTicker.get24HourHigh());
-    builder.withLow(krakenTicker.get24HourLow());
-    builder.withVolume(krakenTicker.get24HourVolume());
-    builder.withCurrencyPair(currencyPair);
+    Ticker.Builder builder = new Ticker.Builder();
+    builder.ask(krakenTicker.getAsk().getPrice());
+    builder.bid(krakenTicker.getBid().getPrice());
+    builder.last(krakenTicker.getClose().getPrice());
+    builder.high(krakenTicker.get24HourHigh());
+    builder.low(krakenTicker.get24HourLow());
+    builder.volume(krakenTicker.get24HourVolume());
+    builder.currencyPair(currencyPair);
     return builder.build();
   }
 
@@ -104,22 +122,22 @@ public class KrakenAdapters {
     return new Trades(trades, last, TradeSortType.SortByTimestamp);
   }
 
-  public static Trade adaptTrade(KrakenPublicTrade krakenTrade, CurrencyPair currencyPair) {
+  public static Trade adaptTrade(KrakenPublicTrade krakenPublicTrade, CurrencyPair currencyPair) {
 
-    OrderType type = adaptOrderType(krakenTrade.getType());
-    BigDecimal tradableAmount = krakenTrade.getVolume();
-    Date timestamp = new Date((long) (krakenTrade.getTime() * 1000L));
+    OrderType type = adaptOrderType(krakenPublicTrade.getType());
+    BigDecimal tradableAmount = krakenPublicTrade.getVolume();
+    Date timestamp = new Date((long) (krakenPublicTrade.getTime() * 1000L));
 
-    return new Trade(type, tradableAmount, currencyPair, krakenTrade.getPrice(), timestamp, "0");
+    return new Trade(type, tradableAmount, currencyPair, krakenPublicTrade.getPrice(), timestamp, "0");
   }
 
   public static AccountInfo adaptBalance(Map<String, BigDecimal> krakenBalance, String username) {
 
-    List<Wallet> wallets = new ArrayList<Wallet>();
+    Map<String, Wallet> wallets = new ConcurrentHashMap<String, Wallet>();
     for (Entry<String, BigDecimal> balancePair : krakenBalance.entrySet()) {
       String currency = adaptCurrency(balancePair.getKey());
       Wallet wallet = new Wallet(currency, balancePair.getValue());
-      wallets.add(wallet);
+      wallets.put(currency, wallet);
     }
     return new AccountInfo(username, wallets);
   }
@@ -136,6 +154,7 @@ public class KrakenAdapters {
   public static String adaptCurrency(String krakenCurrencyCode) {
 
     String currencyCode = (krakenCurrencyCode.length() == 4) ? krakenCurrencyCode.substring(1) : krakenCurrencyCode;
+    currencyCode = (currencyCode.equals("XDG")) ? Currencies.DOGE : currencyCode;
     return (currencyCode.equals("XBT")) ? Currencies.BTC : currencyCode;
   }
 
@@ -175,20 +194,21 @@ public class KrakenAdapters {
     String transactionCurrency = adaptCurrency(orderDescription.getAssetPair().substring(3));
     Date timestamp = new Date((long) (krakenOrder.getOpenTimestamp() * 1000L));
 
-    return new LimitOrder(type, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), id, timestamp, orderDescription.getPrice());
+    return new LimitOrder(type, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), id, timestamp,
+        orderDescription.getPrice());
   }
 
-  public static Trades adaptTradesHistory(Map<String, KrakenTrade> krakenTrades) {
+  public static UserTrades adaptTradesHistory(Map<String, KrakenTrade> krakenTrades) {
 
-    List<Trade> trades = new ArrayList<Trade>();
+    List<UserTrade> trades = new ArrayList<UserTrade>();
     for (Entry<String, KrakenTrade> krakenTradeEntry : krakenTrades.entrySet()) {
       trades.add(adaptTrade(krakenTradeEntry.getValue(), krakenTradeEntry.getKey()));
     }
 
-    return new Trades(trades, TradeSortType.SortByID);
+    return new UserTrades(trades, TradeSortType.SortByID);
   }
 
-  public static Trade adaptTrade(KrakenTrade krakenTrade, String tradeId) {
+  public static KrakenUserTrade adaptTrade(KrakenTrade krakenTrade, String tradeId) {
 
     OrderType orderType = adaptOrderType(krakenTrade.getType());
     BigDecimal tradableAmount = krakenTrade.getVolume();
@@ -199,12 +219,17 @@ public class KrakenAdapters {
     BigDecimal averagePrice = krakenTrade.getAverageClosePrice();
     BigDecimal price = (averagePrice == null) ? krakenTrade.getPrice() : averagePrice;
 
-    return new Trade(orderType, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), price, timestamp, tradeId, krakenTrade.getOrderTxId());
+    return new KrakenUserTrade(orderType, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), price, timestamp, tradeId,
+        krakenTrade.getOrderTxId(), krakenTrade.getFee(), transactionCurrency, krakenTrade.getCost());
   }
 
   public static OrderType adaptOrderType(KrakenType krakenType) {
 
     return krakenType.equals(KrakenType.BUY) ? OrderType.BID : OrderType.ASK;
+  }
+
+  public static String adaptKrakenDepositAddress(KrakenDepositAddress[] krakenDepositAddress) {
+    return krakenDepositAddress[0].getAddress();
   }
 
   public static String adaptOrderId(KrakenOrderResponse orderResponse) {

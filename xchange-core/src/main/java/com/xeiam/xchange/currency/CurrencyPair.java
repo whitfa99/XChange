@@ -1,25 +1,6 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.currency;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * <p>
@@ -33,11 +14,12 @@ package com.xeiam.xchange.currency;
  * Symbol pairs are quoted, for example, as EUR/USD 1.25 such that 1 EUR can be purchased with 1.25 USD
  * </p>
  */
-public class CurrencyPair {
+@JsonSerialize(using = CustomCurrencyPairSerializer.class)
+public class CurrencyPair implements Comparable<CurrencyPair> {
 
   // Provide some standard major symbols
-  public static final CurrencyPair EUR_USD = new CurrencyPair(Currencies.EUR);
-  public static final CurrencyPair GBP_USD = new CurrencyPair(Currencies.GBP);
+  public static final CurrencyPair EUR_USD = new CurrencyPair(Currencies.EUR, Currencies.USD);
+  public static final CurrencyPair GBP_USD = new CurrencyPair(Currencies.GBP, Currencies.USD);
   public static final CurrencyPair USD_JPY = new CurrencyPair(Currencies.USD, Currencies.JPY);
   public static final CurrencyPair JPY_USD = new CurrencyPair(Currencies.JPY, Currencies.USD);
   public static final CurrencyPair USD_CHF = new CurrencyPair(Currencies.USD, Currencies.CHF);
@@ -52,7 +34,7 @@ public class CurrencyPair {
   public static final CurrencyPair KRW_XRP = new CurrencyPair(Currencies.KRW, Currencies.XRP);
 
   // Provide some courtesy BTC major symbols
-  public static final CurrencyPair BTC_USD = new CurrencyPair(Currencies.BTC);
+  public static final CurrencyPair BTC_USD = new CurrencyPair(Currencies.BTC, Currencies.USD);
   public static final CurrencyPair BTC_GBP = new CurrencyPair(Currencies.BTC, Currencies.GBP);
   public static final CurrencyPair BTC_EUR = new CurrencyPair(Currencies.BTC, Currencies.EUR);
   public static final CurrencyPair BTC_JPY = new CurrencyPair(Currencies.BTC, Currencies.JPY);
@@ -62,6 +44,7 @@ public class CurrencyPair {
   public static final CurrencyPair BTC_CNY = new CurrencyPair(Currencies.BTC, Currencies.CNY);
   public static final CurrencyPair BTC_DKK = new CurrencyPair(Currencies.BTC, Currencies.DKK);
   public static final CurrencyPair BTC_HKD = new CurrencyPair(Currencies.BTC, Currencies.HKD);
+  public static final CurrencyPair BTC_MXN = new CurrencyPair(Currencies.BTC, Currencies.MXN);
   public static final CurrencyPair BTC_NZD = new CurrencyPair(Currencies.BTC, Currencies.NZD);
   public static final CurrencyPair BTC_PLN = new CurrencyPair(Currencies.BTC, Currencies.PLN);
   public static final CurrencyPair BTC_RUB = new CurrencyPair(Currencies.BTC, Currencies.RUB);
@@ -79,8 +62,13 @@ public class CurrencyPair {
   public static final CurrencyPair BTC_XRP = new CurrencyPair(Currencies.BTC, Currencies.XRP);
   public static final CurrencyPair BTC_NMC = new CurrencyPair(Currencies.BTC, Currencies.NMC);
   public static final CurrencyPair BTC_XVN = new CurrencyPair(Currencies.BTC, Currencies.XVN);
+  public static final CurrencyPair BTC_IDR = new CurrencyPair(Currencies.BTC, Currencies.IDR);
+  public static final CurrencyPair BTC_PHP = new CurrencyPair(Currencies.BTC, Currencies.PHP);
+  public static final CurrencyPair BTC_STR = new CurrencyPair(Currencies.BTC, Currencies.STR);
 
   public static final CurrencyPair XDC_BTC = new CurrencyPair(Currencies.XDC, Currencies.BTC);
+
+  public static final CurrencyPair XRP_BTC = new CurrencyPair(Currencies.XRP, Currencies.BTC);
 
   public static final CurrencyPair LTC_USD = new CurrencyPair(Currencies.LTC, Currencies.USD);
   public static final CurrencyPair LTC_KRW = new CurrencyPair(Currencies.LTC, Currencies.KRW);
@@ -124,6 +112,7 @@ public class CurrencyPair {
   // BTC
   public static final CurrencyPair BTC_XDC = new CurrencyPair(Currencies.BTC, Currencies.XDC);
   public static final CurrencyPair BTC_PPC = new CurrencyPair(Currencies.BTC, Currencies.PPC);
+  public static final CurrencyPair STR_BTC = new CurrencyPair(Currencies.STR, Currencies.BTC);
 
   // LTC
   public static final CurrencyPair LTC_HKD = new CurrencyPair(Currencies.LTC, Currencies.HKD);
@@ -178,22 +167,11 @@ public class CurrencyPair {
 
   /**
    * <p>
-   * Reduced constructor using the global reserve currency symbol (USD) as the default counter
-   * </p>
-   * 
-   * @param baseSymbol The base symbol is what you're wanting to buy/sell
-   */
-  public CurrencyPair(String baseSymbol) {
-
-    this(baseSymbol, Currencies.USD);
-  }
-
-  /**
-   * <p>
    * Full constructor
    * </p>
-   * In general the CurrencyPair.base is what you're wanting to buy/sell. The CurrencyPair.counter is what currency you want to use to pay/receive for your purchase/sale.
-   * 
+   * In general the CurrencyPair.base is what you're wanting to buy/sell. The CurrencyPair.counter is what currency you want to use to pay/receive for
+   * your purchase/sale.
+   *
    * @param baseSymbol The base symbol is what you're wanting to buy/sell
    * @param counterSymbol The counter symbol is what currency you want to use to pay/receive for your purchase/sale.
    */
@@ -201,6 +179,21 @@ public class CurrencyPair {
 
     this.baseSymbol = baseSymbol;
     this.counterSymbol = counterSymbol;
+  }
+
+  /**
+   * Parse currency pair from a string in the same format as returned by toString() method - ABC/XYZ
+   */
+  public CurrencyPair(String currencyPair) {
+    int split = currencyPair.indexOf("/");
+    if (split < 1) {
+      throw new IllegalArgumentException("Could not parse currency pair from '" + currencyPair + "'");
+    }
+    String base = currencyPair.substring(0, split);
+    String counter = currencyPair.substring(split + 1);
+
+    this.baseSymbol = base;
+    this.counterSymbol = counter;
   }
 
   @Override
@@ -236,19 +229,21 @@ public class CurrencyPair {
       if (other.baseSymbol != null) {
         return false;
       }
-    }
-    else if (!baseSymbol.equals(other.baseSymbol)) {
+    } else if (!baseSymbol.equals(other.baseSymbol)) {
       return false;
     }
     if (counterSymbol == null) {
       if (other.counterSymbol != null) {
         return false;
       }
-    }
-    else if (!counterSymbol.equals(other.counterSymbol)) {
+    } else if (!counterSymbol.equals(other.counterSymbol)) {
       return false;
     }
     return true;
   }
 
+  @Override
+  public int compareTo(CurrencyPair o) {
+    return (baseSymbol.compareTo(o.baseSymbol) << 16) + counterSymbol.compareTo(o.counterSymbol);
+  }
 }

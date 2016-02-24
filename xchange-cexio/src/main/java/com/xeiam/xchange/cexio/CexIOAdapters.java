@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.cexio;
 
 import java.math.BigDecimal;
@@ -27,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import com.xeiam.xchange.cexio.dto.account.CexIOBalance;
 import com.xeiam.xchange.cexio.dto.account.CexIOBalanceInfo;
 import com.xeiam.xchange.cexio.dto.marketdata.CexIODepth;
 import com.xeiam.xchange.cexio.dto.marketdata.CexIOTicker;
@@ -47,15 +27,14 @@ import com.xeiam.xchange.dto.trade.Wallet;
 import com.xeiam.xchange.utils.DateUtils;
 
 /**
- * Author: brox
- * Since: 2/6/14
+ * Author: brox Since: 2/6/14
  */
 
 public class CexIOAdapters {
 
   /**
    * Adapts a CexIOTrade to a Trade Object
-   * 
+   *
    * @param trade CexIO trade object
    * @param tradableIdentifier First currency in the pair
    * @param currency Second currency in the pair
@@ -72,7 +51,7 @@ public class CexIOAdapters {
 
   /**
    * Adapts a CexIOTrade[] to a Trades Object
-   * 
+   *
    * @param cexioTrades The CexIO trade data returned by API
    * @param tradableIdentifier First currency of the pair
    * @param currency Second currency of the pair
@@ -81,16 +60,21 @@ public class CexIOAdapters {
   public static Trades adaptTrades(CexIOTrade[] cexioTrades, CurrencyPair currencyPair) {
 
     List<Trade> tradesList = new ArrayList<Trade>();
+    long lastTradeId = 0;
     for (CexIOTrade trade : cexioTrades) {
+      long tradeId = trade.getTid();
+      if (tradeId > lastTradeId) {
+        lastTradeId = tradeId;
+      }
       // Date is reversed order. Insert at index 0 instead of appending
       tradesList.add(0, adaptTrade(trade, currencyPair));
     }
-    return new Trades(tradesList, TradeSortType.SortByID);
+    return new Trades(tradesList, lastTradeId, TradeSortType.SortByID);
   }
 
   /**
    * Adapts a CexIOTicker to a Ticker Object
-   * 
+   *
    * @param ticker The exchange specific ticker
    * @param tradableIdentifier The tradeable identifier (e.g. BTC in BTC/USD)
    * @param currency The currency (e.g. USD in BTC/USD)
@@ -106,12 +90,13 @@ public class CexIOAdapters {
     BigDecimal volume = ticker.getVolume();
     Date timestamp = new Date(ticker.getTimestamp() * 1000L);
 
-    return Ticker.TickerBuilder.newInstance().withCurrencyPair(currencyPair).withLast(last).withBid(bid).withAsk(ask).withHigh(high).withLow(low).withVolume(volume).withTimestamp(timestamp).build();
+    return new Ticker.Builder().currencyPair(currencyPair).last(last).bid(bid).ask(ask).high(high).low(low).volume(volume).timestamp(timestamp)
+        .build();
   }
 
   /**
    * Adapts Cex.IO Depth to OrderBook Object
-   * 
+   *
    * @param depth Cex.IO order book
    * @param tradableIdentifier The tradable identifier (e.g. BTC in BTC/USD)
    * @param currency The currency (e.g. USD in BTC/USD)
@@ -127,7 +112,7 @@ public class CexIOAdapters {
 
   /**
    * Adapts CexIOBalanceInfo to AccountInfo
-   * 
+   *
    * @param balance CexIOBalanceInfo balance
    * @param userName The user name
    * @return The account info
@@ -140,26 +125,91 @@ public class CexIOAdapters {
     if (balance.getBalanceBTC() != null) {
       wallets.add(new Wallet(Currencies.BTC, balance.getBalanceBTC().getAvailable(), "available"));
       wallets.add(new Wallet(Currencies.BTC, balance.getBalanceBTC().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.BTC, balance.getBalanceBTC()));
     }
     if (balance.getBalanceLTC() != null) {
       wallets.add(new Wallet(Currencies.LTC, balance.getBalanceLTC().getAvailable(), "available"));
       wallets.add(new Wallet(Currencies.LTC, balance.getBalanceLTC().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.LTC, balance.getBalanceLTC()));
     }
     if (balance.getBalanceNMC() != null) {
       wallets.add(new Wallet(Currencies.NMC, balance.getBalanceNMC().getAvailable(), "available"));
       wallets.add(new Wallet(Currencies.NMC, balance.getBalanceNMC().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.NMC, balance.getBalanceNMC()));
     }
     if (balance.getBalanceIXC() != null) {
       wallets.add(new Wallet(Currencies.IXC, balance.getBalanceIXC().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.IXC, balance.getBalanceIXC()));
     }
     if (balance.getBalanceDVC() != null) {
       wallets.add(new Wallet(Currencies.DVC, balance.getBalanceDVC().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.DVC, balance.getBalanceDVC()));
     }
     if (balance.getBalanceGHS() != null) {
       wallets.add(new Wallet(Currencies.GHs, balance.getBalanceGHS().getAvailable(), "available"));
       wallets.add(new Wallet(Currencies.GHs, balance.getBalanceGHS().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.GHs, balance.getBalanceGHS()));
     }
-    return new AccountInfo(userName, null, wallets);
+    if (balance.getBalanceUSD() != null) {
+      wallets.add(new Wallet(Currencies.USD, balance.getBalanceUSD().getAvailable(), "available"));
+      wallets.add(new Wallet(Currencies.USD, balance.getBalanceUSD().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.USD, balance.getBalanceUSD()));
+    }
+    if (balance.getBalanceDRK() != null) {
+      wallets.add(new Wallet(Currencies.DRK, balance.getBalanceDRK().getAvailable(), "available"));
+      wallets.add(new Wallet(Currencies.DRK, balance.getBalanceDRK().getOrders(), "orders"));
+      wallets.add(adaptWallet(Currencies.DRK, balance.getBalanceDRK()));
+    }
+    if (balance.getBalanceEUR() != null) {
+      wallets.add(new Wallet(Currencies.EUR, balance.getBalanceEUR().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.EUR, balance.getBalanceEUR()));
+    }
+    if (balance.getBalanceDOGE() != null) {
+      wallets.add(new Wallet(Currencies.DOGE, balance.getBalanceDOGE().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.DOGE, balance.getBalanceDOGE()));
+    }
+    if (balance.getBalanceFTC() != null) {
+      wallets.add(new Wallet(Currencies.FTC, balance.getBalanceFTC().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.FTC, balance.getBalanceFTC()));
+    }
+    if (balance.getBalanceMEC() != null) {
+      wallets.add(new Wallet(Currencies.MEC, balance.getBalanceMEC().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.MEC, balance.getBalanceMEC()));
+    }
+    if (balance.getBalanceWDC() != null) {
+      wallets.add(new Wallet(Currencies.WDC, balance.getBalanceWDC().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.WDC, balance.getBalanceWDC()));
+    }
+    if (balance.getBalanceMYR() != null) {
+      wallets.add(new Wallet(Currencies.MYR, balance.getBalanceMYR().getAvailable(), "available"));
+      wallets.add(adaptWallet(Currencies.MYR, balance.getBalanceMYR()));
+    }
+    if (balance.getBalanceAUR() != null) {
+      wallets.add(new Wallet("AUR", balance.getBalanceAUR().getAvailable(), "available"));
+      wallets.add(adaptWallet("AUR", balance.getBalanceAUR()));
+    }
+    if (balance.getBalancePOT() != null) {
+      wallets.add(new Wallet("POT", balance.getBalancePOT().getAvailable(), "available"));
+      wallets.add(adaptWallet("POT", balance.getBalancePOT()));
+    }
+    if (balance.getBalanceANC() != null) {
+      wallets.add(new Wallet("ANC", balance.getBalanceANC().getAvailable(), "available"));
+      wallets.add(adaptWallet("ANC", balance.getBalanceANC()));
+    }
+    if (balance.getBalanceDGB() != null) {
+      wallets.add(new Wallet("DGB", balance.getBalanceDGB().getAvailable(), "available"));
+      wallets.add(adaptWallet("DGB", balance.getBalanceDGB()));
+    }
+    if (balance.getBalanceUSDE() != null) {
+      wallets.add(new Wallet("USDE", balance.getBalanceUSDE().getAvailable(), "available"));
+      wallets.add(adaptWallet("USDE", balance.getBalanceUSDE()));
+    }
+
+    return new AccountInfo(userName, wallets);
+  }
+
+  public static Wallet adaptWallet(String currency, CexIOBalance balance) {
+    return new Wallet(currency, balance.getAvailable().add(balance.getOrders()), balance.getAvailable(), balance.getOrders());
   }
 
   public static List<LimitOrder> createOrders(CurrencyPair currencyPair, Order.OrderType orderType, List<List<BigDecimal>> orders) {
@@ -190,9 +240,10 @@ public class CexIOAdapters {
 
     for (CexIOOrder cexIOOrder : cexIOOrderList) {
       Order.OrderType orderType = cexIOOrder.getType() == CexIOOrder.Type.buy ? Order.OrderType.BID : Order.OrderType.ASK;
-      String id = Integer.toString(cexIOOrder.getId());
-      limitOrders.add(new LimitOrder(orderType, cexIOOrder.getAmount(), new CurrencyPair(cexIOOrder.getTradableIdentifier(), cexIOOrder.getTransactionCurrency()), id, DateUtils
-          .fromMillisUtc(cexIOOrder.getTime()), cexIOOrder.getPrice()));
+      String id = Long.toString(cexIOOrder.getId());
+      limitOrders.add(new LimitOrder(orderType, cexIOOrder.getPending(),
+          new CurrencyPair(cexIOOrder.getTradableIdentifier(), cexIOOrder.getTransactionCurrency()), id,
+          DateUtils.fromMillisUtc(cexIOOrder.getTime()), cexIOOrder.getPrice()));
     }
 
     return new OpenOrders(limitOrders);

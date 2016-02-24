@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.kraken.dto.trade;
 
 import java.math.BigDecimal;
@@ -73,11 +52,13 @@ public class KrakenTrade {
    * @param netDifference
    * @param tradeIds
    */
-  public KrakenTrade(@JsonProperty("ordertxid") String orderTxId, @JsonProperty("pair") String assetPair, @JsonProperty("time") double unixTimestamp, @JsonProperty("type") KrakenType type,
-      @JsonProperty("ordertype") KrakenOrderType orderType, @JsonProperty("price") BigDecimal price, @JsonProperty("cost") BigDecimal cost, @JsonProperty("fee") BigDecimal fee,
-      @JsonProperty("vol") BigDecimal volume, @JsonProperty("margin") BigDecimal margin, @JsonProperty("misc") String miscellaneous, @JsonProperty("closing") String closing,
-      @JsonProperty("posstatus") String positionStatus, @JsonProperty("cprice") BigDecimal averageClosePrice, @JsonProperty("ccost") BigDecimal closeCost, @JsonProperty("cfee") BigDecimal closeFee,
-      @JsonProperty("cvol") BigDecimal closeVolume, @JsonProperty("cmargin") BigDecimal closeMargin, @JsonProperty("net") BigDecimal netDifference, @JsonProperty("trades") List<String> tradeIds) {
+  public KrakenTrade(@JsonProperty("ordertxid") String orderTxId, @JsonProperty("pair") String assetPair, @JsonProperty("time") double unixTimestamp,
+      @JsonProperty("type") KrakenType type, @JsonProperty("ordertype") KrakenOrderType orderType, @JsonProperty("price") BigDecimal price,
+      @JsonProperty("cost") BigDecimal cost, @JsonProperty("fee") BigDecimal fee, @JsonProperty("vol") BigDecimal volume,
+      @JsonProperty("margin") BigDecimal margin, @JsonProperty("misc") String miscellaneous, @JsonProperty("closing") String closing,
+      @JsonProperty("posstatus") String positionStatus, @JsonProperty("cprice") BigDecimal averageClosePrice,
+      @JsonProperty("ccost") BigDecimal closeCost, @JsonProperty("cfee") BigDecimal closeFee, @JsonProperty("cvol") BigDecimal closeVolume,
+      @JsonProperty("cmargin") BigDecimal closeMargin, @JsonProperty("net") BigDecimal netDifference, @JsonProperty("trades") List<String> tradeIds) {
 
     this.orderTxId = orderTxId;
     this.assetPair = assetPair;
@@ -204,10 +185,11 @@ public class KrakenTrade {
   @Override
   public String toString() {
 
-    return "KrakenTrade [orderTxId=" + orderTxId + ", assetPair=" + assetPair + ", unixTimestamp=" + unixTimestamp + ", type=" + type + ", orderType=" + orderType + ", price=" + price + ", cost="
-        + cost + ", fee=" + fee + ", volume=" + volume + ", margin=" + margin + ", miscellaneous=" + miscellaneous + ", closing=" + closing + ", positionStatus=" + positionStatus
-        + ", averageClosePrice=" + averageClosePrice + ", closeCost=" + closeCost + ", closeFee=" + closeFee + ", closeVolume=" + closeVolume + ", closeMargin=" + closeMargin + ", netDifference="
-        + netDifference + ", tradeIds=" + tradeIds + "]";
+    return "KrakenTrade [orderTxId=" + orderTxId + ", assetPair=" + assetPair + ", unixTimestamp=" + unixTimestamp + ", type=" + type + ", orderType="
+        + orderType + ", price=" + price + ", cost=" + cost + ", fee=" + fee + ", volume=" + volume + ", margin=" + margin + ", miscellaneous="
+        + miscellaneous + ", closing=" + closing + ", positionStatus=" + positionStatus + ", averageClosePrice=" + averageClosePrice + ", closeCost="
+        + closeCost + ", closeFee=" + closeFee + ", closeVolume=" + closeVolume + ", closeMargin=" + closeMargin + ", netDifference=" + netDifference
+        + ", tradeIds=" + tradeIds + "]";
   }
 
 }

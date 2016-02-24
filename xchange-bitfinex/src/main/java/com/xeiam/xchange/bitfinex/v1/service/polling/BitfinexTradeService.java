@@ -1,52 +1,35 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitfinex.v1.service.polling;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 
-import com.xeiam.xchange.ExchangeSpecification;
-import com.xeiam.xchange.NotYetImplementedForExchangeException;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.bitfinex.v1.BitfinexAdapters;
+import com.xeiam.xchange.bitfinex.v1.BitfinexOrderType;
 import com.xeiam.xchange.bitfinex.v1.dto.trade.BitfinexOrderStatusResponse;
 import com.xeiam.xchange.bitfinex.v1.dto.trade.BitfinexTradeResponse;
-import com.xeiam.xchange.dto.marketdata.Trades;
+import com.xeiam.xchange.currency.CurrencyPair;
 import com.xeiam.xchange.dto.trade.LimitOrder;
 import com.xeiam.xchange.dto.trade.MarketOrder;
 import com.xeiam.xchange.dto.trade.OpenOrders;
-import com.xeiam.xchange.service.polling.PollingTradeService;
+import com.xeiam.xchange.dto.trade.UserTrades;
+import com.xeiam.xchange.exceptions.ExchangeException;
+import com.xeiam.xchange.service.polling.trade.PollingTradeService;
+import com.xeiam.xchange.service.polling.trade.params.DefaultTradeHistoryParamsTimeSpan;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParamCurrencyPair;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParamPaging;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParams;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParamsTimeSpan;
+import com.xeiam.xchange.utils.DateUtils;
 
 public class BitfinexTradeService extends BitfinexTradeServiceRaw implements PollingTradeService {
 
-  private final OpenOrders noOpenOrders = new OpenOrders(new ArrayList<LimitOrder>());
+  private static final OpenOrders noOpenOrders = new OpenOrders(new ArrayList<LimitOrder>());
 
-  /**
-   * Constructor
-   * 
-   * @param exchangeSpecification
-   */
-  public BitfinexTradeService(ExchangeSpecification exchangeSpecification) {
+  public BitfinexTradeService(Exchange exchange) {
 
-    super(exchangeSpecification);
+    super(exchange);
   }
 
   @Override
@@ -56,8 +39,7 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Pol
 
     if (activeOrders.length <= 0) {
       return noOpenOrders;
-    }
-    else {
+    } else {
       return BitfinexAdapters.adaptOrders(activeOrders);
     }
   }
@@ -65,15 +47,15 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Pol
   @Override
   public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
 
-    throw new NotYetImplementedForExchangeException();
+    BitfinexOrderStatusResponse newOrder = placeBitfinexMarketOrder(marketOrder, BitfinexOrderType.MARKET);
+
+    return String.valueOf(newOrder.getId());
   }
 
   @Override
   public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
 
-    verify(limitOrder.getCurrencyPair());
-
-    BitfinexOrderStatusResponse newOrder = placeBitfinexLimitOrder(limitOrder, false);
+    BitfinexOrderStatusResponse newOrder = placeBitfinexLimitOrder(limitOrder, BitfinexOrderType.LIMIT, false);
 
     return String.valueOf(newOrder.getId());
   }
@@ -81,26 +63,130 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Pol
   @Override
   public boolean cancelOrder(String orderId) throws IOException {
 
-    BitfinexOrderStatusResponse cancelResponse = cancelBitfinexOrder(orderId);
-
-    return cancelResponse.isCancelled();
+    return cancelBitfinexOrder(orderId);
   }
 
   @Override
-  public Trades getTradeHistory(final Object... arguments) throws IOException {
+  public UserTrades getTradeHistory(Object... arguments) throws IOException {
 
     String symbol = "btcusd";
     long timestamp = 0;
     int limit = 50;
 
-    if (arguments.length == 3) {
-      symbol = (String) arguments[0];
+    if (arguments.length >= 1) {
+      if (arguments[0] instanceof CurrencyPair) {
+        final CurrencyPair pair = (CurrencyPair) arguments[0];
+        symbol = pair.baseSymbol + pair.counterSymbol;
+      } else {
+        symbol = (String) arguments[0];
+      }
+    }
+    if (arguments.length >= 2) {
       timestamp = (Long) arguments[1];
+    }
+    if (arguments.length >= 3) {
       limit = (Integer) arguments[2];
     }
 
-    BitfinexTradeResponse[] trades = getBitfinexTradeHistory(symbol, timestamp, limit);
+    final BitfinexTradeResponse[] trades = getBitfinexTradeHistory(symbol, timestamp, limit);
 
     return BitfinexAdapters.adaptTradeHistory(trades, symbol);
+  }
+
+  /**
+   * @param params Implementation of {@link TradeHistoryParamCurrencyPair} is mandatory. Can optionally implement {@link TradeHistoryParamPaging} and
+   *        {@link TradeHistoryParamsTimeSpan#getStartTime()}. All other TradeHistoryParams types will be ignored.
+   */
+  @Override
+  public UserTrades getTradeHistory(TradeHistoryParams params) throws IOException {
+
+    final String symbol;
+    if (params instanceof TradeHistoryParamCurrencyPair && ((TradeHistoryParamCurrencyPair) params).getCurrencyPair() != null) {
+      symbol = BitfinexAdapters.adaptCurrencyPair(((TradeHistoryParamCurrencyPair) params).getCurrencyPair());
+    } else {
+      // Exchange will return the errors below if CurrencyPair is not provided.
+      // field not on request: "Key symbol was not present."
+      // field supplied but blank: "Key symbol may not be the empty string"
+      throw new ExchangeException("CurrencyPair must be supplied");
+    }
+
+    final long timestamp;
+    if (params instanceof TradeHistoryParamsTimeSpan) {
+      Date startTime = ((TradeHistoryParamsTimeSpan) params).getStartTime();
+      timestamp = DateUtils.toUnixTime(startTime);
+    } else {
+      timestamp = 0;
+    }
+
+    final int limit;
+    if (params instanceof TradeHistoryParamPaging) {
+      TradeHistoryParamPaging pagingParams = (TradeHistoryParamPaging) params;
+      Integer pageLength = pagingParams.getPageLength();
+      Integer pageNum = pagingParams.getPageNumber();
+      limit = (pageLength != null && pageNum != null) ? pageLength * (pageNum + 1) : 50;
+    } else {
+      limit = 50;
+    }
+
+    final BitfinexTradeResponse[] trades = getBitfinexTradeHistory(symbol, timestamp, limit);
+    return BitfinexAdapters.adaptTradeHistory(trades, symbol);
+  }
+
+  @Override
+  public com.xeiam.xchange.service.polling.trade.params.TradeHistoryParams createTradeHistoryParams() {
+
+    return new BitfinexTradeHistoryParams(new Date(0), 50, CurrencyPair.BTC_USD);
+  }
+
+  public static class BitfinexTradeHistoryParams extends DefaultTradeHistoryParamsTimeSpan
+      implements TradeHistoryParamCurrencyPair, TradeHistoryParamPaging {
+
+    private int count;
+    private CurrencyPair pair;
+    private Integer pageNumber;
+
+    public BitfinexTradeHistoryParams(Date startTime, int count, CurrencyPair pair) {
+
+      super(startTime);
+
+      this.count = count;
+      this.pair = pair;
+    }
+
+    @Override
+    public void setPageLength(Integer count) {
+
+      this.count = count;
+    }
+
+    @Override
+    public Integer getPageLength() {
+
+      return count;
+    }
+
+    @Override
+    public void setPageNumber(Integer pageNumber) {
+
+      this.pageNumber = pageNumber;
+    }
+
+    @Override
+    public Integer getPageNumber() {
+
+      return pageNumber;
+    }
+
+    @Override
+    public CurrencyPair getCurrencyPair() {
+
+      return pair;
+    }
+
+    @Override
+    public void setCurrencyPair(CurrencyPair pair) {
+
+      this.pair = pair;
+    }
   }
 }

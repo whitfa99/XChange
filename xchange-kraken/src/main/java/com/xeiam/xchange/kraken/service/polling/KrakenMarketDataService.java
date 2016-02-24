@@ -1,47 +1,28 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.kraken.service.polling;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-import com.xeiam.xchange.ExchangeException;
-import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.currency.CurrencyPair;
-import com.xeiam.xchange.dto.ExchangeInfo;
 import com.xeiam.xchange.dto.marketdata.OrderBook;
 import com.xeiam.xchange.dto.marketdata.Ticker;
 import com.xeiam.xchange.dto.marketdata.Trades;
+import com.xeiam.xchange.exceptions.ExchangeException;
 import com.xeiam.xchange.kraken.KrakenAdapters;
 import com.xeiam.xchange.kraken.dto.marketdata.KrakenDepth;
 import com.xeiam.xchange.kraken.dto.marketdata.KrakenPublicTrades;
-import com.xeiam.xchange.service.polling.PollingMarketDataService;
+import com.xeiam.xchange.service.polling.marketdata.PollingMarketDataService;
 
 public class KrakenMarketDataService extends KrakenMarketDataServiceRaw implements PollingMarketDataService {
 
-  public KrakenMarketDataService(ExchangeSpecification exchangeSpecification) {
+  /**
+   * Constructor
+   *
+   * @param exchange
+   */
+  public KrakenMarketDataService(Exchange exchange) {
 
-    super(exchangeSpecification);
+    super(exchange);
   }
 
   @Override
@@ -59,9 +40,10 @@ public class KrakenMarketDataService extends KrakenMarketDataServiceRaw implemen
       Object arg0 = args[0];
       if (arg0 instanceof Long) {
         count = (Long) arg0;
-      }
-      else {
-        throw new ExchangeException("args[0] must be of type Long!");
+      } else if (arg0 instanceof Integer) {
+        count = (Integer) arg0;
+      } else {
+        throw new ExchangeException("args[0] must be of type Long or Integer");
       }
     }
 
@@ -73,14 +55,13 @@ public class KrakenMarketDataService extends KrakenMarketDataServiceRaw implemen
   @Override
   public Trades getTrades(CurrencyPair currencyPair, Object... args) throws IOException {
 
-    long since = 0L;
+    Long since = null;
 
     if (args.length > 0) {
       Object arg0 = args[0];
       if (arg0 instanceof Long) {
         since = (Long) arg0;
-      }
-      else {
+      } else {
         throw new ExchangeException("args[0] must be of type Long!");
       }
     }
@@ -90,11 +71,4 @@ public class KrakenMarketDataService extends KrakenMarketDataServiceRaw implemen
     return trades;
   }
 
-  @Override
-  public ExchangeInfo getExchangeInfo() throws IOException {
-
-    List<CurrencyPair> currencyPairs = new ArrayList<CurrencyPair>();
-    currencyPairs.addAll(super.getExchangeSymbols());
-    return new ExchangeInfo(currencyPairs);
-  }
 }

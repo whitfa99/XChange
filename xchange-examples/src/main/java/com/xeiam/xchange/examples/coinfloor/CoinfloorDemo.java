@@ -1,30 +1,8 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.examples.coinfloor;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -48,22 +26,21 @@ import com.xeiam.xchange.service.streaming.ExchangeStreamingConfiguration;
 import com.xeiam.xchange.service.streaming.StreamingExchangeService;
 
 /**
- * This class shows the ExcutorService way of processing returns from the server. While it does look neat, it suffers from the
- * problem that the requests and responses come on different streams, and responses have to be matched with requests before
- * the data can be used. See the cancel all orders section of this demo. To cancel all orders, a request has to first be made to
- * get all open orders, the response of which will be caught by the eventCatcherThread (MarketDataRunnable). Then, it will process
- * that event, print it out, and then store the event in a secondary queue for retrival by the cancel-all-orders part of this program.
- * This is vastly different from the polling services, where data retrieved is returned directly from the method. This
- * CoinfloorStreamingExchangeService allows for the same retrival methods as the polling services. Please see CoinfloorDemo2
- * for example code implementing that route of data retrival. (Note: It is possible to mix both.)
- * 
+ * This class shows the ExcutorService way of processing returns from the server. While it does look neat, it suffers from the problem that the
+ * requests and responses come on different streams, and responses have to be matched with requests before the data can be used. See the cancel all
+ * orders section of this demo. To cancel all orders, a request has to first be made to get all open orders, the response of which will be caught by
+ * the eventCatcherThread (MarketDataRunnable). Then, it will process that event, print it out, and then store the event in a secondary queue for
+ * retrival by the cancel-all-orders part of this program. This is vastly different from the polling services, where data retrieved is returned
+ * directly from the method. This CoinfloorStreamingExchangeService allows for the same retrival methods as the polling services. Please see
+ * CoinfloorDemo2 for example code implementing that route of data retrival. (Note: It is possible to mix both.)
+ *
  * @author obsessiveOrange
  */
 public class CoinfloorDemo {
 
   public static BlockingQueue<CoinfloorExchangeEvent> secondaryQueue = new LinkedBlockingQueue<CoinfloorExchangeEvent>();
 
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
+  public static void main(String[] args) throws Exception {
 
     ExchangeSpecification exSpec = new ExchangeSpecification(CoinfloorExchange.class);
     exSpec.setUserName("163");
@@ -116,7 +93,8 @@ public class CoinfloorDemo {
     ((CoinfloorStreamingExchangeService) streamingExchangeService).placeOrder(buyLimitOrder);
     TimeUnit.MILLISECONDS.sleep(1000);
 
-    LimitOrder sellLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.52321512784), new CurrencyPair("BTC", "GBP"), null, null, new BigDecimal(319));
+    LimitOrder sellLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.52321512784), new CurrencyPair("BTC", "GBP"), null, null,
+        new BigDecimal(319));
     ((CoinfloorStreamingExchangeService) streamingExchangeService).placeOrder(sellLimitOrder);
     TimeUnit.MILLISECONDS.sleep(1000);
 
@@ -131,7 +109,8 @@ public class CoinfloorDemo {
     TimeUnit.MILLISECONDS.sleep(1000);
 
     // get user's current open orders, cancel all of them.
-    CoinfloorOpenOrders openOrders = (CoinfloorOpenOrders) ((CoinfloorStreamingExchangeService) streamingExchangeService).getOrders().getPayloadItem("raw");
+    CoinfloorOpenOrders openOrders = (CoinfloorOpenOrders) ((CoinfloorStreamingExchangeService) streamingExchangeService).getOrders()
+        .getPayloadItem("raw");
     for (CoinfloorOrder order : openOrders.getOrders()) {
       ((CoinfloorStreamingExchangeService) streamingExchangeService).cancelOrder(order.getId());
       TimeUnit.MILLISECONDS.sleep(1000);
@@ -181,7 +160,7 @@ public class CoinfloorDemo {
 
     /**
      * Constructor
-     * 
+     *
      * @param streamingExchangeService
      */
     public MarketDataRunnable(StreamingExchangeService streamingExchangeService, BlockingQueue<CoinfloorExchangeEvent> secondaryQueue) {

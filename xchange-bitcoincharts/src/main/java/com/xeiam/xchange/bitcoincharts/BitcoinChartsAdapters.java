@@ -1,33 +1,16 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitcoincharts;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.xeiam.xchange.bitcoincharts.dto.marketdata.BitcoinChartsTicker;
+import com.xeiam.xchange.currency.Currencies;
 import com.xeiam.xchange.currency.CurrencyPair;
 import com.xeiam.xchange.dto.marketdata.Ticker;
-import com.xeiam.xchange.dto.marketdata.Ticker.TickerBuilder;
+import com.xeiam.xchange.dto.meta.ExchangeMetaData;
+import com.xeiam.xchange.dto.meta.MarketMetaData;
 
 /**
  * Various adapters for converting from BitcoinCharts DTOs to XChange DTOs
@@ -43,9 +26,8 @@ public final class BitcoinChartsAdapters {
 
   /**
    * Adapts a BitcoinChartsTicker[] to a Ticker Object
-   * 
+   *
    * @param bitcoinChartsTickers
-   * @param tradableIdentifier
    * @return
    */
   public static Ticker adaptTicker(BitcoinChartsTicker[] bitcoinChartsTickers, CurrencyPair currencyPair) {
@@ -61,11 +43,32 @@ public final class BitcoinChartsAdapters {
         BigDecimal volume = bitcoinChartsTickers[i].getVolume();
         Date timeStamp = new Date(bitcoinChartsTickers[i].getLatestTrade() * 1000L);
 
-        return TickerBuilder.newInstance().withCurrencyPair(currencyPair).withLast(last).withBid(bid).withAsk(ask).withHigh(high).withLow(low).withVolume(volume).withTimestamp(timeStamp).build();
+        return new Ticker.Builder().currencyPair(currencyPair).last(last).bid(bid).ask(ask).high(high).low(low).volume(volume).timestamp(timeStamp)
+            .build();
 
       }
     }
     return null;
   }
 
+  public static ExchangeMetaData adaptMetaData(ExchangeMetaData exchangeMetaData, BitcoinChartsTicker[] tickers) {
+    Map<CurrencyPair, MarketMetaData> pairs = new HashMap<CurrencyPair, MarketMetaData>();
+
+    for (BitcoinChartsTicker ticker : tickers) {
+      BigDecimal anyPrice = firstNonNull(ticker.getAsk(), ticker.getBid(), ticker.getClose(), ticker.getHigh(), ticker.getHigh());
+      int scale = anyPrice != null ? anyPrice.scale() : 0;
+      pairs.put(new CurrencyPair(Currencies.BTC, ticker.getSymbol()), new MarketMetaData(null, null, scale));
+    }
+
+    return new ExchangeMetaData(pairs, exchangeMetaData.getCurrencyMetaDataMap(), exchangeMetaData.getPublicRateLimits(),
+        exchangeMetaData.getPrivateRateLimits(), exchangeMetaData.isShareRateLimits());
+  }
+
+  private static <T> T firstNonNull(T... objects) {
+    for (T o : objects) {
+      if (o != null)
+        return o;
+    }
+    return null;
+  }
 }

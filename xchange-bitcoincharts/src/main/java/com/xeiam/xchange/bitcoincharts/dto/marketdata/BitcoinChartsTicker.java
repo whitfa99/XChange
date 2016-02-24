@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitcoincharts.dto.marketdata;
 
 import java.math.BigDecimal;
@@ -57,9 +36,10 @@ public final class BitcoinChartsTicker {
    * @param symbol
    * @param volume
    */
-  public BitcoinChartsTicker(@JsonProperty("ask") BigDecimal ask, @JsonProperty("avg") BigDecimal avg, @JsonProperty("bid") BigDecimal bid, @JsonProperty("close") BigDecimal close,
-      @JsonProperty("currency") String currency, @JsonProperty("currency_volume") BigDecimal currencyVolume, @JsonProperty("high") BigDecimal high, @JsonProperty("latest_trade") long latestTrade,
-      @JsonProperty("low") BigDecimal low, @JsonProperty("symbol") String symbol, @JsonProperty("volume") BigDecimal volume) {
+  public BitcoinChartsTicker(@JsonProperty("ask") BigDecimal ask, @JsonProperty("avg") BigDecimal avg, @JsonProperty("bid") BigDecimal bid,
+      @JsonProperty("close") BigDecimal close, @JsonProperty("currency") String currency, @JsonProperty("currency_volume") BigDecimal currencyVolume,
+      @JsonProperty("high") BigDecimal high, @JsonProperty("latest_trade") long latestTrade, @JsonProperty("low") BigDecimal low,
+      @JsonProperty("symbol") String symbol, @JsonProperty("volume") BigDecimal volume) {
 
     this.ask = ask;
     this.avg = avg;
@@ -132,8 +112,8 @@ public final class BitcoinChartsTicker {
   @Override
   public String toString() {
 
-    return "BitcoinChartsTickers [ask=" + ask + ", avg=" + avg + ", bid=" + bid + ", close=" + close + ", currency=" + currency + ", currencyVolume=" + currencyVolume + ", high=" + high
-        + ", latestTrade=" + latestTrade + ", low=" + low + ", symbol=" + symbol + ", volume=" + volume + "]";
+    return "BitcoinChartsTickers [ask=" + ask + ", avg=" + avg + ", bid=" + bid + ", close=" + close + ", currency=" + currency + ", currencyVolume="
+        + currencyVolume + ", high=" + high + ", latestTrade=" + latestTrade + ", low=" + low + ", symbol=" + symbol + ", volume=" + volume + "]";
   }
 
 }

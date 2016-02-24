@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitstamp.service.polling;
 
 import static com.xeiam.xchange.dto.Order.OrderType.BID;
@@ -28,36 +7,41 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.xeiam.xchange.ExchangeException;
-import com.xeiam.xchange.ExchangeSpecification;
-import com.xeiam.xchange.NotAvailableFromExchangeException;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.bitstamp.BitstampAdapters;
+import com.xeiam.xchange.bitstamp.dto.BitstampException;
 import com.xeiam.xchange.bitstamp.dto.trade.BitstampOrder;
 import com.xeiam.xchange.currency.CurrencyPair;
 import com.xeiam.xchange.dto.Order.OrderType;
-import com.xeiam.xchange.dto.marketdata.Trades;
 import com.xeiam.xchange.dto.trade.LimitOrder;
 import com.xeiam.xchange.dto.trade.MarketOrder;
 import com.xeiam.xchange.dto.trade.OpenOrders;
-import com.xeiam.xchange.service.polling.PollingTradeService;
+import com.xeiam.xchange.dto.trade.UserTrades;
+import com.xeiam.xchange.exceptions.ExchangeException;
+import com.xeiam.xchange.exceptions.NotAvailableFromExchangeException;
+import com.xeiam.xchange.service.polling.trade.PollingTradeService;
+import com.xeiam.xchange.service.polling.trade.params.DefaultTradeHistoryParamPaging;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParamPaging;
+import com.xeiam.xchange.service.polling.trade.params.TradeHistoryParams;
 
 /**
  * @author Matija Mazi
  */
+// TODO Convert BitstampExceptions to ExchangeException at the Raw level. Do not leak them out of this class.
 public class BitstampTradeService extends BitstampTradeServiceRaw implements PollingTradeService {
 
   /**
    * Constructor
-   * 
-   * @param exchangeSpecification The {@link ExchangeSpecification}
+   *
+   * @param exchange
    */
-  public BitstampTradeService(ExchangeSpecification exchangeSpecification) {
+  public BitstampTradeService(Exchange exchange) {
 
-    super(exchangeSpecification);
+    super(exchange);
   }
 
   @Override
-  public OpenOrders getOpenOrders() throws IOException {
+  public OpenOrders getOpenOrders() throws IOException, BitstampException {
 
     BitstampOrder[] openOrders = getBitstampOpenOrders();
 
@@ -72,21 +56,18 @@ public class BitstampTradeService extends BitstampTradeServiceRaw implements Pol
   }
 
   @Override
-  public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
+  public String placeMarketOrder(MarketOrder marketOrder) throws IOException, BitstampException {
 
     throw new NotAvailableFromExchangeException();
   }
 
   @Override
-  public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
-
-    verify(limitOrder.getCurrencyPair());
+  public String placeLimitOrder(LimitOrder limitOrder) throws IOException, BitstampException {
 
     BitstampOrder bitstampOrder;
     if (limitOrder.getType() == BID) {
       bitstampOrder = buyBitStampOrder(limitOrder.getTradableAmount(), limitOrder.getLimitPrice());
-    }
-    else {
+    } else {
       bitstampOrder = sellBitstampOrder(limitOrder.getTradableAmount(), limitOrder.getLimitPrice());
     }
     if (bitstampOrder.getErrorMessage() != null) {
@@ -97,26 +78,40 @@ public class BitstampTradeService extends BitstampTradeServiceRaw implements Pol
   }
 
   @Override
-  public boolean cancelOrder(String orderId) throws IOException {
+  public boolean cancelOrder(String orderId) throws IOException, BitstampException {
 
     return cancelBitstampOrder(Integer.parseInt(orderId));
   }
 
   @Override
-  public Trades getTradeHistory(Object... args) throws IOException {
+  public UserTrades getTradeHistory(Object... args) throws IOException, BitstampException {
 
-    Long numberOfTransactions = Long.MAX_VALUE;
+    Long numberOfTransactions = 1000L;
     if (args.length > 0) {
       Object arg0 = args[0];
-      if (!(arg0 instanceof Long)) {
-        throw new ExchangeException("Argument must be of type Long!");
-      }
-      else {
-        numberOfTransactions = (Long) args[0];
+      if (!(arg0 instanceof Number)) {
+        throw new ExchangeException("Argument must be a Number!");
+      } else {
+        numberOfTransactions = ((Number) args[0]).longValue();
       }
     }
 
     return BitstampAdapters.adaptTradeHistory(getBitstampUserTransactions(numberOfTransactions));
+  }
+
+  /**
+   * Required parameter types: {@link TradeHistoryParamPaging#getPageLength()}
+   */
+  @Override
+  public UserTrades getTradeHistory(TradeHistoryParams params) throws IOException {
+
+    return BitstampAdapters.adaptTradeHistory(getBitstampUserTransactions(Long.valueOf(((TradeHistoryParamPaging) params).getPageLength())));
+  }
+
+  @Override
+  public TradeHistoryParams createTradeHistoryParams() {
+
+    return new DefaultTradeHistoryParamPaging(1000);
   }
 
 }

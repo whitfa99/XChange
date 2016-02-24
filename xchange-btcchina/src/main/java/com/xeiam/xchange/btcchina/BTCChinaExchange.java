@@ -1,28 +1,4 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.btcchina;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import com.xeiam.xchange.BaseExchange;
 import com.xeiam.xchange.Exchange;
@@ -30,31 +6,43 @@ import com.xeiam.xchange.ExchangeSpecification;
 import com.xeiam.xchange.btcchina.service.polling.BTCChinaAccountService;
 import com.xeiam.xchange.btcchina.service.polling.BTCChinaMarketDataService;
 import com.xeiam.xchange.btcchina.service.polling.BTCChinaTradeService;
+import com.xeiam.xchange.btcchina.service.streaming.BTCChinaSocketIOService;
+import com.xeiam.xchange.btcchina.service.streaming.BTCChinaStreamingConfiguration;
+import com.xeiam.xchange.service.streaming.ExchangeStreamingConfiguration;
+import com.xeiam.xchange.service.streaming.StreamingExchangeService;
+import com.xeiam.xchange.utils.nonce.CurrentNanosecondTimeIncrementalNonceFactory;
 
-/**
- * <p>
- * Exchange implementation to provide the following to applications:
- * </p>
- * <ul>
- * <li>A wrapper for the BTCChina exchange API</li>
- * </ul>
- */
+import si.mazi.rescu.SynchronizedValueFactory;
+
 public class BTCChinaExchange extends BaseExchange implements Exchange {
 
-  /**
-   * Default constructor for ExchangeFactory
-   */
-  public BTCChinaExchange() {
+  // move to metadata
 
-  }
+  public static final String WEBSOCKET_URI_KEY = "websocket.uri";
+
+  public static final String ALL_MARKET = "ALL";
+  public static final String DEFAULT_MARKET = "BTCCNY";
+
+  /**
+   * 2 decimals for BTC/CNY and LTC/CNY markets.
+   */
+  public static final int CNY_SCALE = 2;
+
+  /**
+   * 4 decimals for LTC/BTC market.
+   */
+  public static final int BTC_SCALE = 4;
+
+  private SynchronizedValueFactory<Long> nonceFactory = new CurrentNanosecondTimeIncrementalNonceFactory();
 
   @Override
-  public void applySpecification(ExchangeSpecification exchangeSpecification) {
+  protected void initServices() {
+    this.pollingTradeService = new BTCChinaTradeService(this);
+    this.pollingAccountService = new BTCChinaAccountService(this);
 
-    super.applySpecification(exchangeSpecification);
-    this.pollingMarketDataService = new BTCChinaMarketDataService(exchangeSpecification);
-    this.pollingTradeService = new BTCChinaTradeService(exchangeSpecification);
-    this.pollingAccountService = new BTCChinaAccountService(exchangeSpecification);
+    // TODO use exchangeSpecificParameters
+    exchangeSpecification.setSslUri("https://data.btcchina.com");
+    this.pollingMarketDataService = new BTCChinaMarketDataService(this);
   }
 
   @Override
@@ -66,12 +54,29 @@ public class BTCChinaExchange extends BaseExchange implements Exchange {
     exchangeSpecification.setPort(80);
     exchangeSpecification.setExchangeName("BTCChina");
     exchangeSpecification.setExchangeDescription("BTCChina is a Bitcoin exchange located in China.");
-
-    final Map<String, Object> exchangeSpecificParameters = new HashMap<String, Object>();
-    exchangeSpecificParameters.put("dataSslUri", "https://data.btcchina.com");
-
-    exchangeSpecification.setExchangeSpecificParameters(exchangeSpecificParameters);
-
+    exchangeSpecification.setExchangeSpecificParametersItem(WEBSOCKET_URI_KEY, "https://websocket.btcchina.com");
     return exchangeSpecification;
+  }
+
+  @Override
+  public StreamingExchangeService getStreamingExchangeService(ExchangeStreamingConfiguration configuration) {
+
+    final BTCChinaStreamingConfiguration btcchinaStreamingConfiguration;
+
+    if (configuration == null) {
+      btcchinaStreamingConfiguration = new BTCChinaStreamingConfiguration();
+    } else if (configuration instanceof BTCChinaStreamingConfiguration) {
+      btcchinaStreamingConfiguration = (BTCChinaStreamingConfiguration) configuration;
+    } else {
+      throw new IllegalArgumentException("BTCChina only supports BTCChinaStreamingConfiguration");
+    }
+
+    return new BTCChinaSocketIOService(this, btcchinaStreamingConfiguration);
+  }
+
+  @Override
+  public SynchronizedValueFactory<Long> getNonceFactory() {
+
+    return nonceFactory;
   }
 }

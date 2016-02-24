@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.coinbase.dto.account;
 
 import java.util.List;
@@ -46,27 +25,27 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
   @JsonProperty("client_id")
   private String oAuthClientId;
 
-  private CoinbaseUser(@JsonProperty("user") final CoinbaseUserInfo user, @JsonProperty("oauth") final CoinbaseOAuth oAuth, @JsonProperty("success") final boolean success,
-      @JsonProperty("errors") final List<String> errors) {
+  private CoinbaseUser(@JsonProperty("user") final CoinbaseUserInfo user, @JsonProperty("oauth") final CoinbaseOAuth oAuth,
+      @JsonProperty("success") final boolean success, @JsonProperty("errors") final List<String> errors) {
 
     super(success, errors);
     this.user = user;
     this.oAuth = oAuth;
   }
 
-  public CoinbaseUser(final CoinbaseUserInfo user) {
+  public CoinbaseUser(CoinbaseUserInfo user) {
 
     super(true);
     this.user = user;
     this.oAuth = null;
   }
 
-  public static CoinbaseUser createNewCoinbaseUser(final String email, final String password) {
+  public static CoinbaseUser createNewCoinbaseUser(String email, final String password) {
 
     return new CoinbaseUser(new CoinbaseUserInfo(email, password, null));
   }
 
-  public static CoinbaseUser createCoinbaseNewUserWithReferrerId(final String email, final String password, final String referrerId) {
+  public static CoinbaseUser createCoinbaseNewUserWithReferrerId(String email, final String password, final String referrerId) {
 
     return new CoinbaseUser(new CoinbaseUserInfo(email, password, referrerId));
   }
@@ -83,7 +62,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return user.getEmail();
   }
 
-  public CoinbaseUser updateEmail(final String email) {
+  public CoinbaseUser updateEmail(String email) {
 
     user.setEmail(email);
     return this;
@@ -95,7 +74,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return user.getName();
   }
 
-  public CoinbaseUser updateName(final String name) {
+  public CoinbaseUser updateName(String name) {
 
     user.setName(name);
     return this;
@@ -125,7 +104,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return user.getTimeZone();
   }
 
-  public CoinbaseUser updateTimeZone(final String timeZone) {
+  public CoinbaseUser updateTimeZone(String timeZone) {
 
     user.setTimeZone(timeZone);
     return this;
@@ -143,7 +122,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return user.getNativeCurrency();
   }
 
-  public CoinbaseUser updateNativeCurrency(final String nativeCurrency) {
+  public CoinbaseUser updateNativeCurrency(String nativeCurrency) {
 
     user.setNativeCurrency(nativeCurrency);
     return this;
@@ -179,7 +158,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return user.getPin();
   }
 
-  public CoinbaseUser updatePin(final String pin) {
+  public CoinbaseUser updatePin(String pin) {
 
     user.setPin(pin);
     return this;
@@ -202,7 +181,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     return oAuthClientId;
   }
 
-  public CoinbaseUser withoAuthClientId(final String oAuthClientId) {
+  public CoinbaseUser withoAuthClientId(String oAuthClientId) {
 
     this.oAuthClientId = oAuthClientId;
     return this;
@@ -240,11 +219,14 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     private String pin;
     private final CoinbaseMerchant merchant;
 
-    private CoinbaseUserInfo(@JsonProperty("id") final String id, @JsonProperty("email") final String email, @JsonProperty("name") final String name, @JsonProperty("password") final String password,
-        @JsonProperty("receive_address") final String receiveAddress, @JsonProperty("referrer_id") final String referrerId, @JsonProperty("time_zone") final String timeZone,
-        @JsonProperty("balance") @JsonDeserialize(using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney balance, @JsonProperty("native_currency") final String nativeCurrency,
-        @JsonProperty("buy_level") final CoinbaseBuySellLevel buyLevel, @JsonProperty("sell_level") final CoinbaseBuySellLevel sellLevel, @JsonProperty("buy_limit") @JsonDeserialize(
-            using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney buyLimit, @JsonProperty("sell_limit") @JsonDeserialize(using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney sellLimit,
+    private CoinbaseUserInfo(@JsonProperty("id") final String id, @JsonProperty("email") final String email, @JsonProperty("name") final String name,
+        @JsonProperty("password") final String password, @JsonProperty("receive_address") final String receiveAddress,
+        @JsonProperty("referrer_id") final String referrerId, @JsonProperty("time_zone") final String timeZone,
+        @JsonProperty("balance") @JsonDeserialize(using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney balance,
+        @JsonProperty("native_currency") final String nativeCurrency, @JsonProperty("buy_level") final CoinbaseBuySellLevel buyLevel,
+        @JsonProperty("sell_level") final CoinbaseBuySellLevel sellLevel,
+        @JsonProperty("buy_limit") @JsonDeserialize(using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney buyLimit,
+        @JsonProperty("sell_limit") @JsonDeserialize(using = CoinbaseMoneyDeserializer.class) final CoinbaseMoney sellLimit,
         @JsonProperty("pin") final String pin, @JsonProperty("merchant") final CoinbaseMerchant merchant) {
 
       this.id = id;
@@ -264,7 +246,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       this.merchant = merchant;
     }
 
-    private CoinbaseUserInfo(final String email, final String password, final String referrerId) {
+    private CoinbaseUserInfo(String email, final String password, final String referrerId) {
 
       this.email = email;
       this.password = password;
@@ -294,7 +276,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       return email;
     }
 
-    private void setEmail(final String email) {
+    private void setEmail(String email) {
 
       this.email = email;
     }
@@ -304,7 +286,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       return name;
     }
 
-    private void setName(final String name) {
+    private void setName(String name) {
 
       this.name = name;
     }
@@ -330,7 +312,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       return timeZone;
     }
 
-    private void setTimeZone(final String timeZone) {
+    private void setTimeZone(String timeZone) {
 
       this.timeZone = timeZone;
     }
@@ -346,7 +328,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       return nativeCurrency;
     }
 
-    private void setNativeCurrency(final String nativeCurrency) {
+    private void setNativeCurrency(String nativeCurrency) {
 
       this.nativeCurrency = nativeCurrency;
     }
@@ -380,7 +362,7 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
       return pin;
     }
 
-    private void setPin(final String pin) {
+    private void setPin(String pin) {
 
       this.pin = pin;
     }
@@ -394,9 +376,10 @@ public class CoinbaseUser extends CoinbaseBaseResponse {
     @Override
     public String toString() {
 
-      return "CoinbaseUserInfo [id=" + id + ", email=" + email + ", name=" + name + ", password=" + password + ", receiveAddress=" + receiveAddress + ", referrerId=" + referrerId + ", timeZone="
-          + timeZone + ", balance=" + balance + ", nativeCurrency=" + nativeCurrency + ", buyLevel=" + buyLevel + ", sellLevel=" + sellLevel + ", buyLimit=" + buyLimit + ", sellLimit=" + sellLimit
-          + ", pin=" + pin + ", merchant=" + merchant + "]";
+      return "CoinbaseUserInfo [id=" + id + ", email=" + email + ", name=" + name + ", password=" + password + ", receiveAddress=" + receiveAddress
+          + ", referrerId=" + referrerId + ", timeZone=" + timeZone + ", balance=" + balance + ", nativeCurrency=" + nativeCurrency + ", buyLevel="
+          + buyLevel + ", sellLevel=" + sellLevel + ", buyLimit=" + buyLimit + ", sellLimit=" + sellLimit + ", pin=" + pin + ", merchant=" + merchant
+          + "]";
     }
   }
 }

@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitfinex.v1.dto.trade;
 
 import java.math.BigDecimal;
@@ -29,27 +8,41 @@ public class BitfinexTradeResponse {
 
   private final BigDecimal price;
   private final BigDecimal amount;
-  private final float timestamp;
+  private final BigDecimal timestamp;
   private final String exchange;
   private final String type;
+  private final String tradeId;
+  private final String orderId;
+  private final BigDecimal feeAmount;
+  private final String feeCurrency;
 
   /**
    * Constructor
-   * 
+   *
    * @param price
    * @param amount
    * @param timestamp
    * @param exchange
    * @param type
+   * @param tradeId
+   * @param orderId
+   * @param feeAmount
+   * @param feeCurrency
    */
-  public BitfinexTradeResponse(@JsonProperty("price") BigDecimal price, @JsonProperty("amount") BigDecimal amount, @JsonProperty("timestamp") float timestamp,
-      @JsonProperty("exchange") String exchange, @JsonProperty("type") String type) {
+  public BitfinexTradeResponse(@JsonProperty("price") final BigDecimal price, @JsonProperty("amount") final BigDecimal amount,
+      @JsonProperty("timestamp") final BigDecimal timestamp, @JsonProperty("exchange") final String exchange, @JsonProperty("type") final String type,
+      @JsonProperty("tid") final String tradeId, @JsonProperty("order_id") final String orderId,
+      @JsonProperty("fee_amount") final BigDecimal feeAmount, @JsonProperty("fee_currency") String feeCurrency) {
 
     this.price = price;
     this.amount = amount;
     this.timestamp = timestamp;
     this.exchange = exchange;
     this.type = type;
+    this.tradeId = tradeId;
+    this.orderId = orderId;
+    this.feeAmount = feeAmount;
+    this.feeCurrency = feeCurrency;
   }
 
   public BigDecimal getPrice() {
@@ -62,7 +55,7 @@ public class BitfinexTradeResponse {
     return amount;
   }
 
-  public float getTimestamp() {
+  public BigDecimal getTimestamp() {
 
     return timestamp;
   }
@@ -72,10 +65,30 @@ public class BitfinexTradeResponse {
     return type;
   }
 
+  public String getOrderId() {
+
+    return orderId;
+  }
+
+  public String getTradeId() {
+
+    return tradeId;
+  }
+
+  public BigDecimal getFeeAmount() {
+
+    return feeAmount;
+  }
+
+  public String getFeeCurrency() {
+
+    return feeCurrency;
+  }
+
   @Override
   public String toString() {
 
-    StringBuilder builder = new StringBuilder();
+    final StringBuilder builder = new StringBuilder();
     builder.append("BitfinexTradeResponse [price=");
     builder.append(price);
     builder.append(", amount=");
@@ -86,6 +99,16 @@ public class BitfinexTradeResponse {
     builder.append(exchange);
     builder.append(", type=");
     builder.append(type);
+    builder.append("]");
+    builder.append(", tradeId=");
+    builder.append(tradeId);
+    builder.append("]");
+    builder.append(", orderId=");
+    builder.append(orderId);
+    builder.append(", fee=");
+    builder.append(feeAmount);
+    builder.append(" ");
+    builder.append(feeCurrency);
     builder.append("]");
     return builder.toString();
   }

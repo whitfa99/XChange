@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.dto.trade;
 
 import java.math.BigDecimal;
@@ -32,23 +11,24 @@ import com.xeiam.xchange.dto.Order;
  * DTO representing a limit order
  * </p>
  * <p>
- * A limit order lets you set a minimum or maximum price before your trade will be treated by the exchange as a {@link MarketOrder}. There is no guarantee that your conditions will be met on the
- * exchange, so your order may not be executed. However, until you become very experienced, almost all orders should be limit orders to protect yourself.
+ * A limit order lets you set a minimum or maximum price before your trade will be treated by the exchange as a {@link MarketOrder}. There is no
+ * guarantee that your conditions will be met on the exchange, so your order may not be executed. However, until you become very experienced, almost
+ * all orders should be limit orders to protect yourself.
  * </p>
  */
-public final class LimitOrder extends Order implements Comparable<LimitOrder> {
+public class LimitOrder extends Order implements Comparable<LimitOrder> {
 
   /**
    * The limit price
    */
-  private final BigDecimal limitPrice;
+  protected final BigDecimal limitPrice;
 
   /**
    * @param type Either BID (buying) or ASK (selling)
    * @param tradableAmount The amount to trade
-   * @param CurrencyPair currencyPair The identifier (e.g. BTC/USD)
+   * @param currencyPair The identifier (e.g. BTC/USD)
    * @param id An id (usually provided by the exchange)
-   * @param timestamp a Date object representing the order's timestamp
+   * @param timestamp a Date object representing the order's timestamp according to the exchange's server, null if not provided
    * @param limitPrice In a BID this is the highest acceptable price, in an ASK this is the lowest acceptable price
    */
   public LimitOrder(OrderType type, BigDecimal tradableAmount, CurrencyPair currencyPair, String id, Date timestamp, BigDecimal limitPrice) {
@@ -80,7 +60,7 @@ public final class LimitOrder extends Order implements Comparable<LimitOrder> {
   @Override
   public int hashCode() {
 
-    int hash = 7;
+    int hash = super.hashCode();
     hash = 59 * hash + (this.limitPrice != null ? this.limitPrice.hashCode() : 0);
     return hash;
   }
@@ -95,9 +75,64 @@ public final class LimitOrder extends Order implements Comparable<LimitOrder> {
       return false;
     }
     final LimitOrder other = (LimitOrder) obj;
-    if (this.limitPrice != other.limitPrice && (this.limitPrice == null || !this.limitPrice.equals(other.limitPrice))) {
+    if (this.limitPrice == null ? (other.limitPrice != null) : this.limitPrice.compareTo(other.limitPrice) != 0) {
       return false;
     }
     return super.equals(obj);
+  }
+
+  public static class Builder extends Order.Builder {
+
+    protected BigDecimal limitPrice;
+
+    public Builder(OrderType orderType, CurrencyPair currencyPair) {
+      super(orderType, currencyPair);
+    }
+
+    public static Builder from(Order order) {
+      Builder builder = (Builder) new Builder(order.getType(), order.getCurrencyPair()).tradableAmount(order.getTradableAmount())
+          .timestamp(order.getTimestamp()).id(order.getId()).flags(order.getOrderFlags());
+      if (order instanceof LimitOrder) {
+        LimitOrder limitOrder = (LimitOrder) order;
+        builder.limitPrice(limitOrder.getLimitPrice());
+      }
+      return builder;
+    }
+
+    @Override
+    public Builder orderType(OrderType orderType) {
+      return (Builder) super.orderType(orderType);
+    }
+
+    @Override
+    public Builder tradableAmount(BigDecimal tradableAmount) {
+      return (Builder) super.tradableAmount(tradableAmount);
+    }
+
+    @Override
+    public Builder currencyPair(CurrencyPair currencyPair) {
+      return (Builder) super.currencyPair(currencyPair);
+    }
+
+    @Override
+    public Builder id(String id) {
+      return (Builder) super.id(id);
+    }
+
+    @Override
+    public Builder timestamp(Date timestamp) {
+      return (Builder) super.timestamp(timestamp);
+    }
+
+    public Builder limitPrice(BigDecimal limitPrice) {
+      this.limitPrice = limitPrice;
+      return this;
+    }
+
+    public LimitOrder build() {
+      LimitOrder order = new LimitOrder(orderType, tradableAmount, currencyPair, id, timestamp, limitPrice);
+      order.setOrderFlags(flags);
+      return order;
+    }
   }
 }

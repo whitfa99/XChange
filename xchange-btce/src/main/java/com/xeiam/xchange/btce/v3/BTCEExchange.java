@@ -1,58 +1,30 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.btce.v3;
+
+import java.io.InputStream;
 
 import com.xeiam.xchange.BaseExchange;
 import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.btce.v3.dto.marketdata.BTCEExchangeInfo;
+import com.xeiam.xchange.btce.v3.dto.meta.BTCEMetaData;
 import com.xeiam.xchange.btce.v3.service.polling.BTCEAccountService;
 import com.xeiam.xchange.btce.v3.service.polling.BTCEMarketDataService;
 import com.xeiam.xchange.btce.v3.service.polling.BTCETradeService;
+import com.xeiam.xchange.utils.nonce.TimestampIncrementingNonceFactory;
 
-/**
- * <p>
- * Exchange implementation to provide the following to applications:
- * </p>
- * <ul>
- * <li>A wrapper for the BTCE exchange API</li>
- * </ul>
- */
+import si.mazi.rescu.SynchronizedValueFactory;
+
 public class BTCEExchange extends BaseExchange implements Exchange {
 
-  /**
-   * Default constructor for ExchangeFactory
-   */
-  public BTCEExchange() {
-
-  }
+  private SynchronizedValueFactory<Long> nonceFactory = new TimestampIncrementingNonceFactory();
+  private BTCEMetaData btceMetaData;
+  private BTCEExchangeInfo btceExchangeInfo;
 
   @Override
-  public void applySpecification(ExchangeSpecification exchangeSpecification) {
-
-    super.applySpecification(exchangeSpecification);
-
-    this.pollingMarketDataService = new BTCEMarketDataService(exchangeSpecification);
-    this.pollingAccountService = new BTCEAccountService(exchangeSpecification);
-    this.pollingTradeService = new BTCETradeService(exchangeSpecification);
+  protected void initServices() {
+    this.pollingMarketDataService = new BTCEMarketDataService(this);
+    this.pollingAccountService = new BTCEAccountService(this);
+    this.pollingTradeService = new BTCETradeService(this);
   }
 
   @Override
@@ -66,5 +38,35 @@ public class BTCEExchange extends BaseExchange implements Exchange {
     exchangeSpecification.setExchangeDescription("BTC-e is a Bitcoin exchange registered in Russia.");
 
     return exchangeSpecification;
+  }
+
+  @Override
+  public SynchronizedValueFactory<Long> getNonceFactory() {
+
+    return nonceFactory;
+  }
+
+  @Override
+  protected void loadMetaData(InputStream is) {
+    btceMetaData = loadMetaData(is, BTCEMetaData.class);
+  }
+
+  @Override
+  public void remoteInit() {
+    try {
+      BTCEMarketDataService marketDataService = (BTCEMarketDataService) pollingMarketDataService;
+      btceExchangeInfo = marketDataService.getBTCEInfo();
+      metaData = BTCEAdapters.toMetaData(btceExchangeInfo, btceMetaData);
+    } catch (Exception e) {
+      logger.warn("An exception occurred while loading the metadata file from the file. This may lead to unexpected results.", e);
+    }
+  }
+
+  public BTCEMetaData getBtceMetaData() {
+    return btceMetaData;
+  }
+
+  public BTCEExchangeInfo getBtceExchangeInfo() {
+    return btceExchangeInfo;
   }
 }

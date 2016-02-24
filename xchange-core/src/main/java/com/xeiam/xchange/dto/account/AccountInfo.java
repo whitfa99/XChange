@@ -1,29 +1,12 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.dto.account;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.xeiam.xchange.currency.Currencies;
 import com.xeiam.xchange.dto.trade.Wallet;
 
 /**
@@ -36,33 +19,101 @@ import com.xeiam.xchange.dto.trade.Wallet;
  */
 public final class AccountInfo {
 
+  // TODO get rid of this field?
   private final String username;
+  // TODO get rid of this field?
   private final BigDecimal tradingFee;
+
+  /**
+   * @deprecated Use {@link #walletsMap} instead, this field will be deleted in XChange 4.0.0.
+   */
+  @Deprecated
   private final List<Wallet> wallets;
 
   /**
+   * TODO: from XChange 4.0.0, rename to wallets.
+   * <p>
+   * The keys represent the currency of the wallet.
+   */
+  private final Map<String, Wallet> walletsMap;
+
+  /**
    * Constructor
-   * 
+   *
    * @param username The user name
    * @param wallets The available wallets
+   * @deprecated Use {@link #AccountInfo(String, Map)} instead, this constructor will be deleted in XChange 4.0.0.
    */
+  @Deprecated
   public AccountInfo(String username, List<Wallet> wallets) {
 
     this(username, null, wallets);
   }
 
   /**
+   * @see #AccountInfo(String, BigDecimal, Iterable).
+   */
+  public AccountInfo(String username, Iterable<Wallet> wallets) {
+    this(username, null, wallets);
+  }
+
+  /**
+   * @see #AccountInfo(String, BigDecimal, Map).
+   */
+  public AccountInfo(String username, Map<String, Wallet> wallets) {
+    this(username, null, wallets);
+  }
+
+  /**
    * Constructor
-   * 
+   *
    * @param username The user name
    * @param tradingFee the trading fee
    * @param wallets The available wallets
+   * @deprecated Use {@link #AccountInfo(String, BigDecimal, Map)} instead, this constructor will be deleted in XChange 4.0.0.
    */
+  @Deprecated
   public AccountInfo(String username, BigDecimal tradingFee, List<Wallet> wallets) {
 
     this.username = username;
     this.tradingFee = tradingFee;
     this.wallets = wallets;
+    this.walletsMap = new HashMap<String, Wallet>();
+    for (Wallet wallet : wallets) {
+      this.walletsMap.put(wallet.getCurrency(), wallet);
+    }
+  }
+
+  /**
+   * Constructs an {@link AccountInfo}.
+   *
+   * @param username the user name.
+   * @param tradingFee the trading fee.
+   * @param wallets the wallets, the currencies of the wallets should not be duplicated.
+   */
+  public AccountInfo(String username, BigDecimal tradingFee, Iterable<Wallet> wallets) {
+    this.username = username;
+    this.tradingFee = tradingFee;
+    this.wallets = new ArrayList<Wallet>();
+    this.walletsMap = new HashMap<String, Wallet>();
+    for (Wallet wallet : wallets) {
+      this.wallets.add(wallet);
+      this.walletsMap.put(wallet.getCurrency(), wallet);
+    }
+  }
+
+  /**
+   * Constructs an {@link AccountInfo}.
+   *
+   * @param username the user name.
+   * @param tradingFee the trading fee.
+   * @param wallets the wallets, key is {@link Currencies}.
+   */
+  public AccountInfo(String username, BigDecimal tradingFee, Map<String, Wallet> wallets) {
+    this.username = username;
+    this.tradingFee = tradingFee;
+    this.walletsMap = wallets;
+    this.wallets = new ArrayList<Wallet>(wallets.values());
   }
 
   /**
@@ -74,16 +125,8 @@ public final class AccountInfo {
   }
 
   /**
-   * @return The available wallets (balance and currency)
-   */
-  public List<Wallet> getWallets() {
-
-    return wallets;
-  }
-
-  /**
    * Returns the current trading fee
-   * 
+   *
    * @return The trading fee
    */
   public BigDecimal getTradingFee() {
@@ -92,11 +135,33 @@ public final class AccountInfo {
   }
 
   /**
-   * Utility method to locate an exchange balance in the given currency
-   * 
-   * @param currencyUnit A valid currency unit (e.g. CurrencyUnit.USD or CurrencyUnit.of("BTC"))
-   * @return The balance, or zero if not found
+   * @return The available wallets (balance and currency)
    */
+  public List<Wallet> getWallets() {
+
+    // FIXME: from XChange 4.0.0 change to return the walletsMap.values()
+    return wallets;
+  }
+
+  /**
+   * Returns the wallet of the specified currency.
+   *
+   * @param currency one of the {@link Currencies}.
+   * @return the wallet of the specified currency, or a zero balance wallet if no wallet with such currency.
+   */
+  public Wallet getWallet(String currency) {
+    Wallet wallet = this.walletsMap.get(currency);
+    return wallet == null ? Wallet.zero(currency) : wallet;
+  }
+
+  /**
+   * Utility method to locate an exchange balance in the given currency
+   *
+   * @param currency A valid currency unit (e.g. CurrencyUnit.USD or CurrencyUnit.of("BTC"))
+   * @return The balance, or zero if not found
+   * @deprecated Use {@link #getWallet(String)} instead.
+   */
+  @Deprecated
   public BigDecimal getBalance(String currency) {
 
     for (Wallet wallet : wallets) {
@@ -111,8 +176,7 @@ public final class AccountInfo {
 
   @Override
   public String toString() {
-
-    return "AccountInfo [username=" + username + ", wallets=" + wallets + "]";
+    return "AccountInfo [username=" + username + ", tradingFee=" + tradingFee + ", wallets=" + wallets + "]";
   }
 
 }

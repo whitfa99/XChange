@@ -1,43 +1,31 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange;
 
-import com.xeiam.xchange.service.polling.PollingAccountService;
-import com.xeiam.xchange.service.polling.PollingMarketDataService;
-import com.xeiam.xchange.service.polling.PollingTradeService;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
+
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xeiam.xchange.dto.meta.ExchangeMetaData;
+import com.xeiam.xchange.exceptions.ExchangeException;
+import com.xeiam.xchange.service.BaseExchangeService;
+import com.xeiam.xchange.service.polling.account.PollingAccountService;
+import com.xeiam.xchange.service.polling.marketdata.PollingMarketDataService;
+import com.xeiam.xchange.service.polling.trade.PollingTradeService;
 import com.xeiam.xchange.service.streaming.ExchangeStreamingConfiguration;
 import com.xeiam.xchange.service.streaming.StreamingExchangeService;
 
-/**
- * <p>
- * Abstract base class to provide the following to {@link Exchange}s:
- * </p>
- * <ul>
- * <li>Access to common methods and fields</li>
- * </ul>
- */
 public abstract class BaseExchange implements Exchange {
 
+  protected final Logger logger = LoggerFactory.getLogger(getClass());
+
   protected ExchangeSpecification exchangeSpecification;
+  protected ExchangeMetaData metaData;
 
   protected PollingMarketDataService pollingMarketDataService;
   protected PollingTradeService pollingTradeService;
@@ -52,9 +40,9 @@ public abstract class BaseExchange implements Exchange {
     // Check if default is for everything
     if (exchangeSpecification == null) {
       this.exchangeSpecification = defaultSpecification;
-    }
-    else {
+    } else {
       // Using a configured exchange
+      // fill in null params with the default ones
       if (exchangeSpecification.getExchangeName() == null) {
         exchangeSpecification.setExchangeName(defaultSpecification.getExchangeName());
       }
@@ -67,18 +55,100 @@ public abstract class BaseExchange implements Exchange {
       if (exchangeSpecification.getHost() == null) {
         exchangeSpecification.setHost(defaultSpecification.getHost());
       }
-      if (exchangeSpecification.getExchangeSpecificParameters() == null || exchangeSpecification.getExchangeSpecificParameters().size() <= 0) {
-        exchangeSpecification.setExchangeSpecificParameters(defaultSpecification.getExchangeSpecificParameters());
+      if (exchangeSpecification.getPlainTextUri() == null) {
+        exchangeSpecification.setPlainTextUri(defaultSpecification.getPlainTextUri());
       }
+      if (exchangeSpecification.getExchangeSpecificParameters() == null) {
+        exchangeSpecification.setExchangeSpecificParameters(defaultSpecification.getExchangeSpecificParameters());
+      } else {
+        // add default value unless it is overridden by current spec
+        for (Map.Entry<String, Object> entry : defaultSpecification.getExchangeSpecificParameters().entrySet()) {
+          if (exchangeSpecification.getExchangeSpecificParametersItem(entry.getKey()) == null) {
+            exchangeSpecification.setExchangeSpecificParametersItem(entry.getKey(), entry.getValue());
+          }
+        }
+      }
+
       this.exchangeSpecification = exchangeSpecification;
     }
 
+    if (this.exchangeSpecification.getMetaDataJsonFileOverride() != null) {// load the metadata from the file system
+
+      InputStream is = null;
+      try {
+        is = new FileInputStream(this.exchangeSpecification.getMetaDataJsonFileOverride());
+        loadMetaData(is);
+      } catch (FileNotFoundException e) {
+        logger.warn(
+            "An exception occured while loading the metadata file from the classpath. This is just a warning and can be ignored, but it may lead to unexpected results, so it's better to address it.",
+            e);
+      } finally {
+        IOUtils.closeQuietly(is);
+      }
+
+    } else if (this.exchangeSpecification.getExchangeName() != null) { // load the metadata from the classpath
+
+      InputStream is = null;
+      try {
+        is = BaseExchangeService.class.getClassLoader().getResourceAsStream(getMetaDataFileName(exchangeSpecification) + ".json");
+        loadMetaData(is);
+      } finally {
+        IOUtils.closeQuietly(is);
+      }
+
+    } else {
+      logger.warn(
+          "No \"exchange name\" found in the ExchangeSpecification. The name is used to load the meta data file from the classpath and may lead to unexpected results.");
+    }
+
+    initServices();
+  }
+
+  protected void initServices() {
+  }
+
+  public void remoteInit() throws IOException, ExchangeException {
+    logger.debug("No remote initialization for {}", exchangeSpecification.getExchangeName());
+  }
+
+  protected void loadMetaData(InputStream is) {
+    loadExchangeMetaData(is);
+  }
+
+  protected <T> T loadMetaData(InputStream is, Class<T> type) {
+    // Use Jackson to parse it
+    ObjectMapper mapper = new ObjectMapper();
+
+    try {
+      T result = mapper.readValue(is, type);
+      logger.debug(result.toString());
+      return result;
+    } catch (Exception e) {
+      logger.warn(
+          "An exception occured while loading the metadata file from the file system. This is just a warning and can be ignored, but it may lead to unexpected results, so it's better to address it.",
+          e);
+      return null;
+    }
+  }
+
+  protected void loadExchangeMetaData(InputStream is) {
+    metaData = loadMetaData(is, ExchangeMetaData.class);
+  }
+
+  public String getMetaDataFileName(ExchangeSpecification exchangeSpecification) {
+
+    return exchangeSpecification.getExchangeName().toLowerCase().replace(" ", "").replace("-", "").replace(".", "");
   }
 
   @Override
   public ExchangeSpecification getExchangeSpecification() {
 
     return exchangeSpecification;
+  }
+
+  @Override
+  public ExchangeMetaData getMetaData() {
+    return metaData;
   }
 
   @Override
@@ -105,4 +175,10 @@ public abstract class BaseExchange implements Exchange {
     return streamingExchangeService;
   }
 
+  @Override
+  public String toString() {
+
+    String name = exchangeSpecification != null ? exchangeSpecification.getExchangeName() : getClass().getName();
+    return name + "#" + hashCode();
+  }
 }

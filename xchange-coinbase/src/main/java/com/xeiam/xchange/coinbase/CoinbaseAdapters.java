@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.coinbase;
 
 import java.math.BigDecimal;
@@ -39,10 +18,9 @@ import com.xeiam.xchange.currency.CurrencyPair;
 import com.xeiam.xchange.dto.Order.OrderType;
 import com.xeiam.xchange.dto.account.AccountInfo;
 import com.xeiam.xchange.dto.marketdata.Ticker;
-import com.xeiam.xchange.dto.marketdata.Ticker.TickerBuilder;
-import com.xeiam.xchange.dto.marketdata.Trade;
-import com.xeiam.xchange.dto.marketdata.Trades;
 import com.xeiam.xchange.dto.marketdata.Trades.TradeSortType;
+import com.xeiam.xchange.dto.trade.UserTrade;
+import com.xeiam.xchange.dto.trade.UserTrades;
 import com.xeiam.xchange.dto.trade.Wallet;
 
 /**
@@ -54,7 +32,7 @@ public final class CoinbaseAdapters {
 
   }
 
-  public static AccountInfo adaptAccountInfo(final CoinbaseUser user) {
+  public static AccountInfo adaptAccountInfo(CoinbaseUser user) {
 
     final String username = user.getEmail();
     final CoinbaseMoney balance = user.getBalance();
@@ -66,17 +44,16 @@ public final class CoinbaseAdapters {
     return accountInfo;
   }
 
-  public static Trades adaptTrades(final CoinbaseTransfers transfers) {
+  public static UserTrades adaptTrades(CoinbaseTransfers transfers) {
 
-    final List<Trade> trades = new ArrayList<Trade>();
-    for (final CoinbaseTransfer transfer : transfers.getTransfers())
+    final List<UserTrade> trades = new ArrayList<UserTrade>();
+    for (CoinbaseTransfer transfer : transfers.getTransfers())
       trades.add(adaptTrade(transfer));
 
-    final Trades adaptedTrades = new Trades(trades, TradeSortType.SortByTimestamp);
-    return adaptedTrades;
+    return new UserTrades(trades, TradeSortType.SortByTimestamp);
   }
 
-  public static Trade adaptTrade(final CoinbaseTransfer transfer) {
+  public static UserTrade adaptTrade(CoinbaseTransfer transfer) {
 
     final OrderType orderType = adaptOrderType(transfer.getType());
     final CoinbaseMoney btcAmount = transfer.getBtcAmount();
@@ -87,12 +64,15 @@ public final class CoinbaseAdapters {
     final BigDecimal price = subTotal.getAmount().divide(tradableAmount, RoundingMode.HALF_EVEN);
     final Date timestamp = transfer.getCreatedAt();
     final String id = transfer.getTransactionId();
+    final String transferId = transfer.getId();
+    final BigDecimal feeAmount = transfer.getCoinbaseFee().getAmount();
+    final String feeCurrency = transfer.getCoinbaseFee().getCurrency();
 
-    final Trade adaptedTrade = new Trade(orderType, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), price, timestamp, id, id);
-    return adaptedTrade;
+    return new UserTrade(orderType, tradableAmount, new CurrencyPair(tradableIdentifier, transactionCurrency), price, timestamp, id, transferId,
+        feeAmount, feeCurrency);
   }
 
-  public static OrderType adaptOrderType(final CoinbaseTransferType transferType) {
+  public static OrderType adaptOrderType(CoinbaseTransferType transferType) {
 
     switch (transferType) {
     case BUY:
@@ -105,11 +85,11 @@ public final class CoinbaseAdapters {
 
   private static final int TWENTY_FOUR_HOURS_IN_MILLIS = 1000 * 60 * 60 * 24;
 
-  public static Ticker adaptTicker(final CurrencyPair currencyPair, final CoinbasePrice buyPrice, final CoinbasePrice sellPrice, final CoinbaseMoney spotRate,
-      final CoinbaseSpotPriceHistory coinbaseSpotPriceHistory) {
+  public static Ticker adaptTicker(CurrencyPair currencyPair, final CoinbasePrice buyPrice, final CoinbasePrice sellPrice,
+      final CoinbaseMoney spotRate, final CoinbaseSpotPriceHistory coinbaseSpotPriceHistory) {
 
-    final TickerBuilder tickerBuilder =
-        TickerBuilder.newInstance().withCurrencyPair(currencyPair).withAsk(buyPrice.getSubTotal().getAmount()).withBid(sellPrice.getSubTotal().getAmount()).withLast(spotRate.getAmount());
+    final Ticker.Builder tickerBuilder = new Ticker.Builder().currencyPair(currencyPair).ask(buyPrice.getSubTotal().getAmount())
+        .bid(sellPrice.getSubTotal().getAmount()).last(spotRate.getAmount());
 
     // Get the 24 hour high and low spot price if the history is provided.
     if (coinbaseSpotPriceHistory != null) {
@@ -117,7 +97,7 @@ public final class CoinbaseAdapters {
       BigDecimal observedLow = spotRate.getAmount();
       Date twentyFourHoursAgo = null;
       // The spot price history list is sorted in descending order by timestamp when deserialized.
-      for (final CoinbaseHistoricalSpotPrice historicalSpotPrice : coinbaseSpotPriceHistory.getSpotPriceHistory()) {
+      for (CoinbaseHistoricalSpotPrice historicalSpotPrice : coinbaseSpotPriceHistory.getSpotPriceHistory()) {
 
         if (twentyFourHoursAgo == null)
           twentyFourHoursAgo = new Date(historicalSpotPrice.getTimestamp().getTime() - TWENTY_FOUR_HOURS_IN_MILLIS);
@@ -130,7 +110,7 @@ public final class CoinbaseAdapters {
         else if (spotPriceAmount.compareTo(observedHigh) > 0)
           observedHigh = spotPriceAmount;
       }
-      tickerBuilder.withHigh(observedHigh).withLow(observedLow);
+      tickerBuilder.high(observedHigh).low(observedLow);
     }
 
     return tickerBuilder.build();

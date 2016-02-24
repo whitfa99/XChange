@@ -1,78 +1,70 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.service;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
-import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.currency.CurrencyPair;
-import com.xeiam.xchange.utils.Assert;
+import com.xeiam.xchange.dto.Order;
+import com.xeiam.xchange.dto.meta.ExchangeMetaData;
+import com.xeiam.xchange.dto.meta.MarketMetaData;
+import com.xeiam.xchange.dto.trade.LimitOrder;
+import com.xeiam.xchange.dto.trade.MarketOrder;
 
 /**
- * <p>
- * Abstract base class to provide the following to exchange services:
- * </p>
- * <ul>
- * <li>Provision of standard specification parsing</li>
- * </ul>
+ * Top of the hierarchy abstract class for an "exchange service"
  */
 public abstract class BaseExchangeService {
 
   /**
-   * The exchange specification containing session-specific information
+   * The base Exchange. Every service has access to the containing exchange class, which hold meta data and the exchange specification
    */
-  protected final ExchangeSpecification exchangeSpecification;
+  protected final Exchange exchange;
 
   /**
-   * Constructor Initialize common properties from the exchange specification
-   * 
-   * @param exchangeSpecification The {@link ExchangeSpecification}
+   * Constructor
    */
-  protected BaseExchangeService(ExchangeSpecification exchangeSpecification) {
+  protected BaseExchangeService(Exchange exchange) {
 
-    Assert.notNull(exchangeSpecification, "exchangeSpecification cannot be null");
-
-    this.exchangeSpecification = exchangeSpecification;
+    this.exchange = exchange;
   }
 
-  /**
-   * <p>
-   * what symbol pairs the exchange supports
-   * </p>
-   * 
-   * @return The symbol pairs supported by this exchange (e.g. EUR/USD), null if some sort of error occurred. Implementers should log the error.
-   */
-  public abstract Collection<CurrencyPair> getExchangeSymbols() throws IOException;
+  public void verifyOrder(LimitOrder limitOrder) {
+    ExchangeMetaData exchangeMetaData = exchange.getMetaData();
+    verifyOrder(limitOrder, exchangeMetaData);
+    BigDecimal price = limitOrder.getLimitPrice().stripTrailingZeros();
 
-  /**
-   * Verify that both currencies can make valid pair
-   * 
-   * @param currencyPair The currency pair (e.g. BTC/USD)
-   */
-  public void verify(CurrencyPair currencyPair) throws IOException {
-
-    Assert.notNull(currencyPair, "currencyPair cannot be null");
-    Assert.isTrue(getExchangeSymbols().contains(currencyPair), "currencyPair is not valid:" + currencyPair.toString());
+    if (price.scale() > exchangeMetaData.getMarketMetaDataMap().get(limitOrder.getCurrencyPair()).getPriceScale()) {
+      throw new IllegalArgumentException("Unsupported price scale " + price.scale());
+    }
   }
 
+  public void verifyOrder(MarketOrder marketOrder) {
+    verifyOrder(marketOrder, exchange.getMetaData());
+  }
+
+  final protected void verifyOrder(Order order, ExchangeMetaData exchangeMetaData) {
+    MarketMetaData metaData = exchangeMetaData.getMarketMetaDataMap().get(order.getCurrencyPair());
+    if (metaData == null) {
+      throw new IllegalArgumentException("Invalid CurrencyPair");
+    }
+
+    BigDecimal tradableAmount = order.getTradableAmount();
+    if (tradableAmount == null)
+      throw new IllegalArgumentException("Missing tradableAmount");
+
+    BigDecimal amount = tradableAmount.stripTrailingZeros();
+    BigDecimal minimumAmount = metaData.getMinimumAmount();
+    if (amount.scale() > minimumAmount.scale()) {
+      throw new IllegalArgumentException("Unsupported amount scale " + amount.scale());
+    } else if (amount.compareTo(minimumAmount) < 0) {
+      throw new IllegalArgumentException("Order amount less than minimum");
+    }
+  }
+
+  public List<CurrencyPair> getExchangeSymbols() throws IOException {
+    return new ArrayList<CurrencyPair>(exchange.getMetaData().getMarketMetaDataMap().keySet());
+  }
 }

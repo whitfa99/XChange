@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.coinbase.dto.trade;
 
 import java.io.IOException;
@@ -61,9 +40,10 @@ public class CoinbaseTransfer extends CoinbaseBaseResponse {
   private final CoinbaseMoney total;
   private final String description;
 
-  public CoinbaseTransfer(final String id, final CoinbaseTransferType type, final String fundingType, final String code, final Date createdAt, final CoinbaseMoney coinbaseFee,
-      final CoinbaseMoney bankFee, final Date payoutDate, final String transactionId, final CoinbaseTransferStatus status, final CoinbaseMoney btcAmount, final CoinbaseMoney subtotal,
-      final CoinbaseMoney total, final String description, final boolean success, final List<String> errors) {
+  public CoinbaseTransfer(String id, final CoinbaseTransferType type, final String fundingType, final String code, final Date createdAt,
+      final CoinbaseMoney coinbaseFee, final CoinbaseMoney bankFee, final Date payoutDate, final String transactionId,
+      final CoinbaseTransferStatus status, final CoinbaseMoney btcAmount, final CoinbaseMoney subtotal, final CoinbaseMoney total,
+      final String description, final boolean success, final List<String> errors) {
 
     super(success, errors);
     this.id = id;
@@ -155,9 +135,9 @@ public class CoinbaseTransfer extends CoinbaseBaseResponse {
   @Override
   public String toString() {
 
-    return "CoinbaseTransfer [id=" + id + ", type=" + type + ", fundingType=" + fundingType + ", code=" + code + ", createdAt=" + createdAt + ", coinbaseFee=" + coinbaseFee + ", bankFee=" + bankFee
-        + ", payoutDate=" + payoutDate + ", transactionId=" + transactionId + ", status=" + status + ", btcAmount=" + btcAmount + ", subtotal=" + subtotal + ", total=" + total + ", description="
-        + description + "]";
+    return "CoinbaseTransfer [id=" + id + ", type=" + type + ", fundingType=" + fundingType + ", code=" + code + ", createdAt=" + createdAt
+        + ", coinbaseFee=" + coinbaseFee + ", bankFee=" + bankFee + ", payoutDate=" + payoutDate + ", transactionId=" + transactionId + ", status="
+        + status + ", btcAmount=" + btcAmount + ", subtotal=" + subtotal + ", total=" + total + ", description=" + description + "]";
   }
 
   public enum CoinbaseTransferStatus {
@@ -180,7 +160,7 @@ public class CoinbaseTransfer extends CoinbaseBaseResponse {
         success = successNode.asBoolean();
         final JsonNode errorsNode = node.path("errors");
         if (errorsNode.isArray())
-          for (final JsonNode errorNode : errorsNode)
+          for (JsonNode errorNode : errorsNode)
             errors.add(errorNode.asText());
       }
 
@@ -201,7 +181,8 @@ public class CoinbaseTransfer extends CoinbaseBaseResponse {
       final CoinbaseMoney total = CoinbaseMoneyDeserializer.getCoinbaseMoneyFromNode(transferNode.path("total"));
       final String description = transferNode.path("description").asText();
 
-      return new CoinbaseTransfer(id, type, fundingType, code, createdAt, coinbaseFee, bankFee, payoutDate, transactionId, status, btcAmount, subtotal, total, description, success, errors);
+      return new CoinbaseTransfer(id, type, fundingType, code, createdAt, coinbaseFee, bankFee, payoutDate, transactionId, status, btcAmount,
+          subtotal, total, description, success, errors);
     }
   }
 }

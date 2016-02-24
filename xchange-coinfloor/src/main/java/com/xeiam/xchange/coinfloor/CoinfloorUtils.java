@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.coinfloor;
 
 import java.io.DataOutputStream;
@@ -40,15 +19,16 @@ import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.util.encoders.Base64;
 
-import com.xeiam.xchange.ExchangeException;
+import com.xeiam.xchange.exceptions.ExchangeException;
 
 /**
  * @author obsessiveOrange
  */
 public class CoinfloorUtils {
 
+  // TODO move this to metadata and coinfloor.json
   public enum CoinfloorCurrency {
-    BTC, GBP
+    BTC, GBP, EUR, USD, PLN
   }
 
   private static final ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec("secp224k1");
@@ -100,16 +80,11 @@ public class CoinfloorUtils {
     }
   }
 
-  protected static String buildNonceString() {
-
-    long currentTime = System.currentTimeMillis();
-    return "::" + currentTime + ":";
-  }
-
   private static String bigIntegerToBase64(BigInteger bi) {
 
     byte[] bytes = bi.toByteArray();
-    return bytes[0] == 0 ? org.bouncycastle.util.encoders.Base64.toBase64String(bytes, 1, bytes.length - 1) : org.bouncycastle.util.encoders.Base64.toBase64String(bytes);
+    return bytes[0] == 0 ? org.bouncycastle.util.encoders.Base64.toBase64String(bytes, 1, bytes.length - 1)
+        : org.bouncycastle.util.encoders.Base64.toBase64String(bytes);
   }
 
   public static void checkSuccess(Map<String, Object> payload) {
@@ -125,8 +100,7 @@ public class CoinfloorUtils {
 
     if (currency.equals("BTC")) {
       return CoinfloorCurrency.BTC;
-    }
-    else if (currency.equals("GBP")) {
+    } else if (currency.equals("GBP")) {
       return CoinfloorCurrency.GBP;
     }
 
@@ -140,8 +114,14 @@ public class CoinfloorUtils {
       return null;
     case 63488:
       return CoinfloorCurrency.BTC;
+    case 64000:
+      return CoinfloorCurrency.EUR;
     case 64032:
       return CoinfloorCurrency.GBP;
+    case 64128:
+      return CoinfloorCurrency.USD;
+    case 64936:
+      return CoinfloorCurrency.PLN;
     }
 
     throw new ExchangeException("Currency Code " + currencyCode + " not supported by coinfloor!");
@@ -157,8 +137,14 @@ public class CoinfloorUtils {
     switch (currency) {
     case BTC:
       return 63488;
+    case EUR:
+      return 64000;
     case GBP:
       return 64032;
+    case USD:
+      return 64128;
+    case PLN:
+      return 64936;
     }
 
     throw new ExchangeException("Currency " + currency + " not supported by coinfloor!");
@@ -170,6 +156,9 @@ public class CoinfloorUtils {
     case BTC:
       return 4;
     case GBP:
+    case EUR:
+    case USD:
+    case PLN:
       return 2;
     }
 
@@ -198,7 +187,7 @@ public class CoinfloorUtils {
 
   /**
    * Scale integer price results from API call to BigDecimal for local use.
-   * 
+   *
    * @param amountToScale The integer result recieved from API Call
    * @return BigDecimal representation of integer amount
    */
@@ -214,7 +203,7 @@ public class CoinfloorUtils {
 
   /**
    * Scale integer price results from API call to BigDecimal for local use.
-   * 
+   *
    * @param amountToScale The integer result recieved from API Call
    * @return BigDecimal representation of integer amount
    */

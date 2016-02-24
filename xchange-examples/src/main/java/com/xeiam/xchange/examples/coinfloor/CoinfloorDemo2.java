@@ -1,30 +1,8 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.examples.coinfloor;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.xeiam.xchange.Exchange;
@@ -43,16 +21,16 @@ import com.xeiam.xchange.service.streaming.ExchangeStreamingConfiguration;
 import com.xeiam.xchange.service.streaming.StreamingExchangeService;
 
 /**
- * The purpose of this class is to show an alternative way. The methods themselves DO return data, and thus allows interaction
- * much in the same way as the polling data services. It looks messier, since the request and output are all clustered together,
- * but it allows for much more flexibility when retrieving data (Specifically, look at the section that cancels all orders).
- * Doing it this way removes the need for a secondary queue to pull data that has been handled already by the executorService.
- * 
+ * The purpose of this class is to show an alternative way. The methods themselves DO return data, and thus allows interaction much in the same way as
+ * the polling data services. It looks messier, since the request and output are all clustered together, but it allows for much more flexibility when
+ * retrieving data (Specifically, look at the section that cancels all orders). Doing it this way removes the need for a secondary queue to pull data
+ * that has been handled already by the executorService.
+ *
  * @author obsessiveOrange
  */
 public class CoinfloorDemo2 {
 
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
+  public static void main(String[] args) throws Exception {
 
     ExchangeSpecification exSpec = new ExchangeSpecification(CoinfloorExchange.class);
     exSpec.setUserName("163");
@@ -147,7 +125,8 @@ public class CoinfloorDemo2 {
           }
 
           // send two orders, that will (partially) fulfill each other, to generate a trade.
-          LimitOrder buyLimitOrder = new LimitOrder(OrderType.BID, new BigDecimal(1), new CurrencyPair("BTC", "GBP"), null, null, new BigDecimal(3.20));
+          LimitOrder buyLimitOrder = new LimitOrder(OrderType.BID, new BigDecimal(1), new CurrencyPair("BTC", "GBP"), null, null,
+              new BigDecimal(3.20));
           resultMap = ((CoinfloorStreamingExchangeService) streamingExchangeService).placeOrder(buyLimitOrder).getPayload();
           System.out.println("\n\n\n\n\nBuy Limit Order Placed: ");
           System.out.println("Raw Object: " + resultMap.get("raw"));
@@ -161,7 +140,8 @@ public class CoinfloorDemo2 {
           System.out.println("\n\n\n\n\nCached Account Info: ");
           System.out.println(((CoinfloorStreamingExchangeService) streamingExchangeService).getCachedAccountInfo());
 
-          LimitOrder sellLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.52321512784), new CurrencyPair("BTC", "GBP"), null, null, new BigDecimal(3.19));
+          LimitOrder sellLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.52321512784), new CurrencyPair("BTC", "GBP"), null, null,
+              new BigDecimal(3.19));
           resultMap = ((CoinfloorStreamingExchangeService) streamingExchangeService).placeOrder(sellLimitOrder).getPayload();
           System.out.println("\n\n\n\n\nSell Limit Order Placed: ");
           System.out.println("Raw Object: " + resultMap.get("raw"));
@@ -176,7 +156,8 @@ public class CoinfloorDemo2 {
           System.out.println(((CoinfloorStreamingExchangeService) streamingExchangeService).getCachedAccountInfo());
 
           // then send another order, that will never be fulfilled
-          LimitOrder bigLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.152), new CurrencyPair("BTC", "GBP"), null, null, new BigDecimal(500));
+          LimitOrder bigLimitOrder = new LimitOrder(OrderType.ASK, new BigDecimal(1.152), new CurrencyPair("BTC", "GBP"), null, null,
+              new BigDecimal(500));
           resultMap = ((CoinfloorStreamingExchangeService) streamingExchangeService).placeOrder(bigLimitOrder).getPayload();
           System.out.println("\n\n\n\n\nBig Limit Order Placed: ");
           System.out.println("Raw Object: " + resultMap.get("raw"));
@@ -211,7 +192,8 @@ public class CoinfloorDemo2 {
     }
 
     // get user's current open orders, cancel all of them.
-    CoinfloorOpenOrders openOrders = (CoinfloorOpenOrders) ((CoinfloorStreamingExchangeService) streamingExchangeService).getOrders().getPayloadItem("raw");
+    CoinfloorOpenOrders openOrders = (CoinfloorOpenOrders) ((CoinfloorStreamingExchangeService) streamingExchangeService).getOrders()
+        .getPayloadItem("raw");
     for (CoinfloorOrder order : openOrders.getOrders()) {
       resultMap = ((CoinfloorStreamingExchangeService) streamingExchangeService).cancelOrder(order.getId()).getPayload();
       System.out.println("\n\n\n\n\nCancelled order: ");

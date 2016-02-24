@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.service.streaming;
 
 import java.net.URI;
@@ -37,7 +16,7 @@ import org.java_websocket.util.Charsetfunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.xeiam.xchange.ExchangeException;
+import com.xeiam.xchange.exceptions.ExchangeException;
 
 /**
  * @author timmolter
@@ -59,7 +38,8 @@ public class WebSocketEventProducer extends WebSocketClient {
    * @param headers
    * @throws URISyntaxException
    */
-  public WebSocketEventProducer(String url, ExchangeEventListener exchangeEventListener, Map<String, String> headers, ReconnectService reconnectService) throws URISyntaxException {
+  public WebSocketEventProducer(String url, ExchangeEventListener exchangeEventListener, Map<String, String> headers,
+      ReconnectService reconnectService) throws URISyntaxException {
 
     super(new URI(url), new Draft_17(), headers, 0);
     this.exchangeEventListener = exchangeEventListener;
@@ -76,7 +56,12 @@ public class WebSocketEventProducer extends WebSocketClient {
     ExchangeEvent exchangeEvent = new JsonWrappedExchangeEvent(ExchangeEventType.CONNECT, "connected");
 
     if (reconnectService != null) { // logic here to intercept errors and reconnect..
-      reconnectService.intercept(exchangeEvent);
+      try {
+        reconnectService.intercept(exchangeEvent);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
     }
 
     exchangeEventListener.handleEvent(exchangeEvent);
@@ -93,7 +78,12 @@ public class WebSocketEventProducer extends WebSocketClient {
     ExchangeEvent exchangeEvent = new DefaultExchangeEvent(ExchangeEventType.MESSAGE, message);
 
     if (reconnectService != null) { // logic here to intercept errors and reconnect..
-      reconnectService.intercept(exchangeEvent);
+      try {
+        reconnectService.intercept(exchangeEvent);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
     }
 
     exchangeEventListener.handleEvent(exchangeEvent);
@@ -136,7 +126,12 @@ public class WebSocketEventProducer extends WebSocketClient {
     ExchangeEvent exchangeEvent = new JsonWrappedExchangeEvent(ExchangeEventType.DISCONNECT, "disconnected");
 
     if (reconnectService != null) { // logic here to intercept errors and reconnect..
-      reconnectService.intercept(exchangeEvent);
+      try {
+        reconnectService.intercept(exchangeEvent);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
     }
 
     exchangeEventListener.handleEvent(exchangeEvent);
@@ -152,7 +147,12 @@ public class WebSocketEventProducer extends WebSocketClient {
     ExchangeEvent exchangeEvent = new JsonWrappedExchangeEvent(ExchangeEventType.ERROR, ex.getMessage());
 
     if (reconnectService != null) { // logic here to intercept errors and reconnect..
-      reconnectService.intercept(exchangeEvent);
+      try {
+        reconnectService.intercept(exchangeEvent);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
     }
 
     exchangeEventListener.handleEvent(exchangeEvent);

@@ -1,24 +1,3 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.coinfloor.dto.streaming;
 
 import java.math.BigDecimal;
@@ -51,10 +30,11 @@ public class CoinfloorOrder {
   private final BigDecimal askBaseFee;
   private final BigDecimal askCounterFee;
 
-  public CoinfloorOrder(@JsonProperty("id") int id, @JsonProperty("bid") int bidID, @JsonProperty("ask") int askID, @JsonProperty("base") int base, @JsonProperty("counter") int counter,
-      @JsonProperty("quantity") int baseQty, @JsonProperty("price") int price, @JsonProperty("total") int counterQty, @JsonProperty("bid_rem") int bidRem, @JsonProperty("ask_rem") int askRem,
-      @JsonProperty("time") long time, @JsonProperty("bid_base_fee") int bidBaseFee, @JsonProperty("bid_counter_fee") int bidCounterFee, @JsonProperty("ask_base_fee") int askBaseFee,
-      @JsonProperty("ask_counter_fee") int askCounterFee) {
+  public CoinfloorOrder(@JsonProperty("id") int id, @JsonProperty("bid") int bidID, @JsonProperty("ask") int askID, @JsonProperty("base") int base,
+      @JsonProperty("counter") int counter, @JsonProperty("quantity") int baseQty, @JsonProperty("price") int price,
+      @JsonProperty("total") int counterQty, @JsonProperty("bid_rem") int bidRem, @JsonProperty("ask_rem") int askRem,
+      @JsonProperty("time") long time, @JsonProperty("bid_base_fee") int bidBaseFee, @JsonProperty("bid_counter_fee") int bidCounterFee,
+      @JsonProperty("ask_base_fee") int askBaseFee, @JsonProperty("ask_counter_fee") int askCounterFee) {
 
     this.id = id;
     this.bidID = bidID;
@@ -136,8 +116,7 @@ public class CoinfloorOrder {
 
     if (bidBaseFee != null) {
       return bidBaseFee;
-    }
-    else if (askBaseFee != null) {
+    } else if (askBaseFee != null) {
       return askBaseFee;
     }
     return null;
@@ -147,8 +126,7 @@ public class CoinfloorOrder {
 
     if (bidCounterFee != null) {
       return bidCounterFee;
-    }
-    else if (askCounterFee != null) {
+    } else if (askCounterFee != null) {
       return askCounterFee;
     }
     return null;
@@ -157,8 +135,9 @@ public class CoinfloorOrder {
   @Override
   public String toString() {
 
-    return "CoinfloorOrder{id='" + id + "', bidID='" + bidID + "', askID='" + askID + "', base='" + base + "', counter='" + counter + "', baseQty='" + baseQty + "', price='" + price
-        + "', counterQty='" + counterQty + "', bidRem='" + bidRem + "', askRem='" + askRem + "', bidBaseFee='" + bidBaseFee + "', bidCounterFee='" + bidCounterFee + "', askBaseFee='" + askBaseFee
-        + "', askCounterFee='" + askCounterFee + "', time='" + time + "'}";
+    return "CoinfloorOrder{id='" + id + "', bidID='" + bidID + "', askID='" + askID + "', base='" + base + "', counter='" + counter + "', baseQty='"
+        + baseQty + "', price='" + price + "', counterQty='" + counterQty + "', bidRem='" + bidRem + "', askRem='" + askRem + "', bidBaseFee='"
+        + bidBaseFee + "', bidCounterFee='" + bidCounterFee + "', askBaseFee='" + askBaseFee + "', askCounterFee='" + askCounterFee + "', time='"
+        + time + "'}";
   }
 }

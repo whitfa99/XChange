@@ -1,31 +1,16 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange;
 
-import com.xeiam.xchange.service.polling.PollingAccountService;
-import com.xeiam.xchange.service.polling.PollingMarketDataService;
-import com.xeiam.xchange.service.polling.PollingTradeService;
+import java.io.IOException;
+
+import com.xeiam.xchange.dto.meta.ExchangeMetaData;
+import com.xeiam.xchange.exceptions.ExchangeException;
+import com.xeiam.xchange.service.polling.account.PollingAccountService;
+import com.xeiam.xchange.service.polling.marketdata.PollingMarketDataService;
+import com.xeiam.xchange.service.polling.trade.PollingTradeService;
 import com.xeiam.xchange.service.streaming.ExchangeStreamingConfiguration;
 import com.xeiam.xchange.service.streaming.StreamingExchangeService;
+
+import si.mazi.rescu.SynchronizedValueFactory;
 
 /**
  * <p>
@@ -46,13 +31,29 @@ public interface Exchange {
   ExchangeSpecification getExchangeSpecification();
 
   /**
+   * The MetaData defining some semi-static properties of an exchange such as currency pairs, trading fees, etc.
+   *
+   * @return
+   */
+  ExchangeMetaData getMetaData();
+
+  /**
+   * The nonce factory used to create a nonce value. Allows services to accept a placeholder that is replaced with generated value just before message
+   * is serialized and sent. If a method of a rest accepts ValueFactory as a parameter, it's evaluated, the message is serialized and sent in a single
+   * synchronized block.
+   *
+   * @return
+   */
+  SynchronizedValueFactory<Long> getNonceFactory();
+
+  /**
    * @return A default ExchangeSpecification to use during the creation process if one is not supplied
    */
   ExchangeSpecification getDefaultExchangeSpecification();
 
   /**
    * Applies any exchange specific parameters
-   * 
+   *
    * @param exchangeSpecification The {@link ExchangeSpecification}
    */
   void applySpecification(ExchangeSpecification exchangeSpecification);
@@ -64,7 +65,7 @@ public interface Exchange {
    * <p>
    * This is the non-streaming (blocking) version of the service
    * </p>
-   * 
+   *
    * @return The exchange's market data service
    */
   PollingMarketDataService getPollingMarketDataService();
@@ -74,10 +75,10 @@ public interface Exchange {
    * A market data service typically consists of a regularly updated list of the available prices for the various symbols
    * </p>
    * <p>
-   * This is the streaming (non-blocking and event driven) version of the service, and requires an application to provide a suitable implementation of the listener to allow event callbacks to take
-   * place.
+   * This is the streaming (non-blocking and event driven) version of the service, and requires an application to provide a suitable implementation of
+   * the listener to allow event callbacks to take place.
    * </p>
-   * 
+   *
    * @param configuration The exchange-specific configuration to be applied after creation
    * @return The exchange's "push" market data service
    */
@@ -88,9 +89,10 @@ public interface Exchange {
    * An trade service typically provides access to trading functionality
    * </p>
    * <p>
-   * Typically access is restricted by a secret API key and/or username password authentication which are usually provided in the {@link ExchangeSpecification}
+   * Typically access is restricted by a secret API key and/or username password authentication which are usually provided in the
+   * {@link ExchangeSpecification}
    * </p>
-   * 
+   *
    * @return The exchange's polling trade service
    */
   PollingTradeService getPollingTradeService();
@@ -100,11 +102,17 @@ public interface Exchange {
    * An account service typically provides access to the user's private exchange data
    * </p>
    * <p>
-   * Typically access is restricted by a secret API key and/or username password authentication which are usually provided in the {@link ExchangeSpecification}
+   * Typically access is restricted by a secret API key and/or username password authentication which are usually provided in the
+   * {@link ExchangeSpecification}
    * </p>
-   * 
+   *
    * @return The exchange's polling account service
    */
   PollingAccountService getPollingAccountService();
 
+  /**
+   * Initialize this instance with the remote meta data. Most exchanges require this method to be called before {@link #getMetaData()}. Some exchanges
+   * require it before using some of their services.
+   */
+  void remoteInit() throws IOException, ExchangeException;
 }

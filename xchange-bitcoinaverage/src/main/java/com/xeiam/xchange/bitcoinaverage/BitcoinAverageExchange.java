@@ -1,53 +1,26 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.bitcoinaverage;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 import com.xeiam.xchange.BaseExchange;
 import com.xeiam.xchange.Exchange;
 import com.xeiam.xchange.ExchangeSpecification;
+import com.xeiam.xchange.bitcoinaverage.dto.marketdata.BitcoinAverageTickers;
+import com.xeiam.xchange.bitcoinaverage.dto.meta.BitcoinAverageMetaData;
 import com.xeiam.xchange.bitcoinaverage.service.polling.BitcoinAverageMarketDataService;
+import com.xeiam.xchange.bitcoinaverage.service.polling.BitcoinAverageMarketDataServiceRaw;
+import com.xeiam.xchange.exceptions.ExchangeException;
 
-/**
- * <p>
- * Exchange implementation to provide the following to applications:
- * </p>
- * <ul>
- * <li>A wrapper for the BitcoinAverage API</li>
- * </ul>
- */
+import si.mazi.rescu.SynchronizedValueFactory;
+
 public class BitcoinAverageExchange extends BaseExchange implements Exchange {
 
-  /**
-   * Default constructor for ExchangeFactory
-   */
-  public BitcoinAverageExchange() {
-
-  }
+  private BitcoinAverageMetaData bitcoinAverageMetaData;
 
   @Override
-  public void applySpecification(ExchangeSpecification exchangeSpecification) {
-
-    super.applySpecification(exchangeSpecification);
-    this.pollingMarketDataService = new BitcoinAverageMarketDataService(exchangeSpecification);
+  protected void initServices() {
+    this.pollingMarketDataService = new BitcoinAverageMarketDataService(this);
   }
 
   @Override
@@ -57,9 +30,31 @@ public class BitcoinAverageExchange extends BaseExchange implements Exchange {
     exchangeSpecification.setSslUri("https://api.bitcoinaverage.com");
     exchangeSpecification.setHost("bitcoinaverage.com");
     exchangeSpecification.setPort(80);
-    exchangeSpecification.setExchangeName("BitcoinAverage");
-    exchangeSpecification.setExchangeDescription("BitcoinAverage provides a more accurate price of bitcoin using weighted average for multiple exchanges.");
+    exchangeSpecification.setExchangeName("Bitcoin Average");
+    exchangeSpecification
+        .setExchangeDescription("Bitcoin Average provides a more accurate price of bitcoin using weighted average for multiple exchanges.");
 
     return exchangeSpecification;
+  }
+
+  @Override
+  public SynchronizedValueFactory<Long> getNonceFactory() {
+    // No private API implemented. Not needed for this exchange at the moment.
+    return null;
+  }
+
+  @Override
+  public void remoteInit() throws IOException, ExchangeException {
+    BitcoinAverageTickers tickers = ((BitcoinAverageMarketDataServiceRaw) pollingMarketDataService).getBitcoinAverageAllTickers();
+    metaData = BitcoinAverageAdapters.adaptMetaData(tickers, bitcoinAverageMetaData);
+  }
+
+  @Override
+  protected void loadMetaData(InputStream is) {
+    bitcoinAverageMetaData = loadMetaData(is, BitcoinAverageMetaData.class);
+  }
+
+  public BitcoinAverageMetaData getBitcoinAverageMetaData() {
+    return bitcoinAverageMetaData;
   }
 }

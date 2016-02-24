@@ -1,29 +1,10 @@
-/**
- * Copyright (C) 2012 - 2014 Xeiam LLC http://xeiam.com
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.xeiam.xchange.btce.v3;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -33,21 +14,27 @@ import org.slf4j.LoggerFactory;
 
 import com.xeiam.xchange.btce.v3.dto.account.BTCEAccountInfo;
 import com.xeiam.xchange.btce.v3.dto.marketdata.BTCEExchangeInfo;
+import com.xeiam.xchange.btce.v3.dto.marketdata.BTCEPairInfo;
 import com.xeiam.xchange.btce.v3.dto.marketdata.BTCETicker;
 import com.xeiam.xchange.btce.v3.dto.marketdata.BTCETrade;
+import com.xeiam.xchange.btce.v3.dto.meta.BTCEMetaData;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCEOrder;
 import com.xeiam.xchange.btce.v3.dto.trade.BTCETradeHistoryResult;
 import com.xeiam.xchange.currency.CurrencyPair;
-import com.xeiam.xchange.dto.ExchangeInfo;
 import com.xeiam.xchange.dto.Order.OrderType;
 import com.xeiam.xchange.dto.account.AccountInfo;
 import com.xeiam.xchange.dto.marketdata.Ticker;
-import com.xeiam.xchange.dto.marketdata.Ticker.TickerBuilder;
 import com.xeiam.xchange.dto.marketdata.Trade;
 import com.xeiam.xchange.dto.marketdata.Trades;
 import com.xeiam.xchange.dto.marketdata.Trades.TradeSortType;
+import com.xeiam.xchange.dto.meta.CurrencyMetaData;
+import com.xeiam.xchange.dto.meta.ExchangeMetaData;
+import com.xeiam.xchange.dto.meta.MarketMetaData;
 import com.xeiam.xchange.dto.trade.LimitOrder;
+import com.xeiam.xchange.dto.trade.MarketOrder;
 import com.xeiam.xchange.dto.trade.OpenOrders;
+import com.xeiam.xchange.dto.trade.UserTrade;
+import com.xeiam.xchange.dto.trade.UserTrades;
 import com.xeiam.xchange.dto.trade.Wallet;
 import com.xeiam.xchange.utils.DateUtils;
 
@@ -67,25 +54,20 @@ public final class BTCEAdapters {
 
   /**
    * Adapts a List of BTCEOrders to a List of LimitOrders
-   * 
+   *
    * @param bTCEOrders
-   * @param currency
-   * @param orderType
+   * @param currencyPair
+   * @param orderTypeString
    * @param id
    * @return
    */
-  public static List<LimitOrder> adaptOrders(List<BigDecimal[]> bTCEOrders, CurrencyPair currencyPair, String orderType, String id) {
+  public static List<LimitOrder> adaptOrders(List<BigDecimal[]> bTCEOrders, CurrencyPair currencyPair, String orderTypeString, String id) {
 
     List<LimitOrder> limitOrders = new ArrayList<LimitOrder>();
+    OrderType orderType = orderTypeString.equalsIgnoreCase("bid") ? OrderType.BID : OrderType.ASK;
 
     for (BigDecimal[] btceOrder : bTCEOrders) {
-      // Bid orderbook is reversed order. Insert at index 0 instead of appending
-      if (orderType.equalsIgnoreCase("bid")) {
-        limitOrders.add(0, adaptOrder(btceOrder[1], btceOrder[0], currencyPair, orderType, id));
-      }
-      else {
-        limitOrders.add(adaptOrder(btceOrder[1], btceOrder[0], currencyPair, orderType, id));
-      }
+      limitOrders.add(adaptOrder(btceOrder[1], btceOrder[0], currencyPair, orderType, id));
     }
 
     return limitOrders;
@@ -93,28 +75,24 @@ public final class BTCEAdapters {
 
   /**
    * Adapts a BTCEOrder to a LimitOrder
-   * 
+   *
    * @param amount
    * @param price
-   * @param currency
-   * @param orderTypeString
+   * @param currencyPair
+   * @param orderType
    * @param id
    * @return
    */
-  public static LimitOrder adaptOrder(BigDecimal amount, BigDecimal price, CurrencyPair currencyPair, String orderTypeString, String id) {
-
-    // place a limit order
-    OrderType orderType = orderTypeString.equalsIgnoreCase("bid") ? OrderType.BID : OrderType.ASK;
+  public static LimitOrder adaptOrder(BigDecimal amount, BigDecimal price, CurrencyPair currencyPair, OrderType orderType, String id) {
 
     return new LimitOrder(orderType, amount, currencyPair, id, null, price);
   }
 
   /**
    * Adapts a BTCETradeV3 to a Trade Object
-   * 
+   *
    * @param bTCETrade BTCE trade object v.3
-   * @param tradableIdentifier First currency in the pair
-   * @param currency Second currency in the pair
+   * @param currencyPair the currency pair
    * @return The XChange Trade
    */
   public static Trade adaptTrade(BTCETrade bTCETrade, CurrencyPair currencyPair) {
@@ -130,25 +108,29 @@ public final class BTCEAdapters {
 
   /**
    * Adapts a BTCETradeV3[] to a Trades Object
-   * 
+   *
    * @param bTCETrades The BTCE trade data returned by API v.3
-   * @param tradableIdentifier First currency of the pair
-   * @param currency Second currency of the pair
+   * @param currencyPair the currency pair
    * @return The trades
    */
   public static Trades adaptTrades(BTCETrade[] bTCETrades, CurrencyPair currencyPair) {
 
     List<Trade> tradesList = new ArrayList<Trade>();
+    long lastTradeId = 0;
     for (BTCETrade bTCETrade : bTCETrades) {
       // Date is reversed order. Insert at index 0 instead of appending
+      long tradeId = bTCETrade.getTid();
+      if (tradeId > lastTradeId) {
+        lastTradeId = tradeId;
+      }
       tradesList.add(0, adaptTrade(bTCETrade, currencyPair));
     }
-    return new Trades(tradesList, TradeSortType.SortByID);
+    return new Trades(tradesList, lastTradeId, TradeSortType.SortByID);
   }
 
   /**
    * Adapts a BTCETicker to a Ticker Object
-   * 
+   *
    * @param bTCETicker
    * @return
    */
@@ -159,10 +141,12 @@ public final class BTCEAdapters {
     BigDecimal ask = bTCETicker.getBuy();
     BigDecimal high = bTCETicker.getHigh();
     BigDecimal low = bTCETicker.getLow();
+    BigDecimal avg = bTCETicker.getAvg();
     BigDecimal volume = bTCETicker.getVolCur();
     Date timestamp = DateUtils.fromMillisUtc(bTCETicker.getUpdated() * 1000L);
 
-    return TickerBuilder.newInstance().withCurrencyPair(currencyPair).withLast(last).withBid(bid).withAsk(ask).withHigh(high).withLow(low).withVolume(volume).withTimestamp(timestamp).build();
+    return new Ticker.Builder().currencyPair(currencyPair).last(last).bid(bid).ask(ask).high(high).low(low).vwap(avg).volume(volume)
+        .timestamp(timestamp).build();
   }
 
   public static AccountInfo adaptAccountInfo(BTCEAccountInfo btceAccountInfo) {
@@ -194,22 +178,21 @@ public final class BTCEAdapters {
     return new OpenOrders(limitOrders);
   }
 
-  public static Trades adaptTradeHistory(Map<Long, BTCETradeHistoryResult> tradeHistory) {
+  public static UserTrades adaptTradeHistory(Map<Long, BTCETradeHistoryResult> tradeHistory) {
 
-    List<Trade> trades = new ArrayList<Trade>(tradeHistory.size());
+    List<UserTrade> trades = new ArrayList<UserTrade>(tradeHistory.size());
     for (Entry<Long, BTCETradeHistoryResult> entry : tradeHistory.entrySet()) {
       BTCETradeHistoryResult result = entry.getValue();
       OrderType type = result.getType() == BTCETradeHistoryResult.Type.buy ? OrderType.BID : OrderType.ASK;
-      String[] pair = result.getPair().split("_");
       BigDecimal price = result.getRate();
       BigDecimal tradableAmount = result.getAmount();
       Date timeStamp = DateUtils.fromMillisUtc(result.getTimestamp() * 1000L);
       String orderId = String.valueOf(result.getOrderId());
       String tradeId = String.valueOf(entry.getKey());
-      CurrencyPair currencyPair = new CurrencyPair(pair[0].toUpperCase(), pair[1].toUpperCase());
-      trades.add(new Trade(type, tradableAmount, currencyPair, price, timeStamp, tradeId, orderId));
+      CurrencyPair currencyPair = adaptCurrencyPair(result.getPair());
+      trades.add(new UserTrade(type, tradableAmount, currencyPair, price, timeStamp, tradeId, orderId, null, null));
     }
-    return new Trades(trades, TradeSortType.SortByTimestamp);
+    return new UserTrades(trades, TradeSortType.SortByTimestamp);
   }
 
   public static CurrencyPair adaptCurrencyPair(String btceCurrencyPair) {
@@ -218,20 +201,69 @@ public final class BTCEAdapters {
     return new CurrencyPair(currencies[0].toUpperCase(), currencies[1].toUpperCase());
   }
 
+  public static String adaptCurrencyPair(CurrencyPair currencyPair) {
+    return (currencyPair.baseSymbol + "_" + currencyPair.counterSymbol).toLowerCase();
+  }
+
   public static List<CurrencyPair> adaptCurrencyPairs(Iterable<String> btcePairs) {
 
     List<CurrencyPair> pairs = new ArrayList<CurrencyPair>();
-    for (String btcePair : btcePairs)
+    for (String btcePair : btcePairs) {
       pairs.add(adaptCurrencyPair(btcePair));
+    }
 
     return pairs;
   }
 
-  public static ExchangeInfo adaptExchangeInfo(BTCEExchangeInfo infoV3) {
+  public static ExchangeMetaData toMetaData(BTCEExchangeInfo btceExchangeInfo, BTCEMetaData btceMetaData) {
+    Map<CurrencyPair, MarketMetaData> currencyPairs = new HashMap<CurrencyPair, MarketMetaData>();
+    Map<String, CurrencyMetaData> currencies = new HashMap<String, CurrencyMetaData>();
 
-    List<CurrencyPair> currencyPairs = adaptCurrencyPairs(infoV3.getPairs().keySet());
+    for (Entry<String, BTCEPairInfo> e : btceExchangeInfo.getPairs().entrySet()) {
+      CurrencyPair pair = adaptCurrencyPair(e.getKey());
+      MarketMetaData marketMetaData = toMarketMetaData(e.getValue(), btceMetaData);
+      currencyPairs.put(pair, marketMetaData);
 
-    return new ExchangeInfo(currencyPairs);
+      addCurrencyMetaData(pair.baseSymbol, currencies);
+      addCurrencyMetaData(pair.counterSymbol, currencies);
+    }
+
+    return new ExchangeMetaData(currencyPairs, currencies, null, null, null);
   }
 
+  private static void addCurrencyMetaData(String symbol, Map<String, CurrencyMetaData> currencies) {
+    if (!currencies.containsKey(symbol)) {
+      currencies.put(symbol, new CurrencyMetaData(8));
+    }
+  }
+
+  public static MarketMetaData toMarketMetaData(BTCEPairInfo info, BTCEMetaData btceMetaData) {
+    int priceScale = info.getDecimals();
+    BigDecimal minimumAmount = withScale(info.getMinAmount(), btceMetaData.amountScale);
+    BigDecimal feeFraction = info.getFee().movePointLeft(2);
+
+    return new MarketMetaData(feeFraction, minimumAmount, priceScale);
+  }
+
+  private static BigDecimal withScale(BigDecimal value, int priceScale) {
+    /*
+     * Last time I checked BTC-e returned an erroneous JSON result, where the minimum price for LTC/EUR was .0001 and the price scale was 3
+     */
+    try {
+      return value.setScale(priceScale, RoundingMode.UNNECESSARY);
+    } catch (ArithmeticException e) {
+      log.debug("Could not round {} to {} decimal places: {}", value, priceScale, e.getMessage());
+      return value.setScale(priceScale, RoundingMode.CEILING);
+    }
+  }
+
+  public static String getPair(CurrencyPair currencyPair) {
+    return currencyPair.baseSymbol.toLowerCase() + "_" + currencyPair.counterSymbol.toLowerCase();
+  }
+
+  public static LimitOrder createLimitOrder(MarketOrder marketOrder, BTCEExchangeInfo btceExchangeInfo) {
+    BTCEPairInfo btcePairInfo = btceExchangeInfo.getPairs().get(getPair(marketOrder.getCurrencyPair()));
+    BigDecimal limitPrice = marketOrder.getType() == OrderType.BID ? btcePairInfo.getMaxPrice() : btcePairInfo.getMinPrice();
+    return LimitOrder.Builder.from(marketOrder).limitPrice(limitPrice).build();
+  }
 }
